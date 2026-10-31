@@ -15,16 +15,11 @@ export default async function HomePage() {
       <PageHeader
         eyebrow="Přehled"
         title="Co je otevřené"
-        description="Vydané doklady, splatnost a odběratelé na jednom místě. Historii z iDokladu přenesete importem."
+        description="Vydané doklady, splatnost a odběratelé na jednom místě."
         action={
-          <>
-            <Link href="/faktury/nova" className={buttonVariants()}>
-              Nová faktura
-            </Link>
-            <Link href="/import" className={buttonVariants({ variant: "outline" })}>
-              Import z iDokladu
-            </Link>
-          </>
+          <Link href="/faktury/nova" className={buttonVariants()}>
+            Nová faktura
+          </Link>
         }
       />
 
