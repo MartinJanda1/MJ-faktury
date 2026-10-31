@@ -456,3 +456,29 @@ export async function dashboardRows() {
     customerCount: doc.customers.length,
   };
 }
+
+export async function listInvoicesForStats() {
+  const doc = await loadStore();
+  return doc.invoices
+    .map((invoice) => ({
+      id: invoice.id,
+      number: invoice.number,
+      issueDate: invoice.issueDate,
+      status: invoice.status,
+      paidDate: invoice.paidDate,
+      customerId: invoice.customerId,
+      customerName: invoice.customerName,
+      customerIco: invoice.customerIco,
+      customerDic: invoice.customerDic,
+      totalGross: invoice.totalGross,
+      currency: invoice.currency,
+      items: doc.items
+        .filter((item) => item.invoiceId === invoice.id)
+        .map((item) => ({
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: item.unitPrice,
+        })),
+    }))
+    .sort((a, b) => b.issueDate.localeCompare(a.issueDate) || b.number.localeCompare(a.number));
+}

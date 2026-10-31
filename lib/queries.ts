@@ -9,6 +9,7 @@ import {
   listInvoiceNumbers,
   listInvoiceRows,
   listInvoiceYears,
+  listInvoicesForStats,
   readCompanyPublic,
 } from "./persist";
 import { displayStatus } from "./status";
@@ -137,6 +138,11 @@ function moneyEntries(map: Map<string, number>) {
   return [...map.entries()]
     .map(([currency, gross]) => ({ currency, gross }))
     .sort((a, b) => b.gross - a.gross || a.currency.localeCompare(b.currency));
+}
+
+export async function getStatsInvoices() {
+  await live();
+  return listInvoicesForStats();
 }
 
 export async function getStatistics(filter: { year?: string; from?: string; to?: string }) {
