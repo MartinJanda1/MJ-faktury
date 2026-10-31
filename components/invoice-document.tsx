@@ -256,7 +256,6 @@ export async function InvoiceDocument({ invoice, company, showQr }: InvoiceDocum
         </div>
         <div className="section-body">
           <p className="items-intro">Fakturujeme Vám za dodané zboží či služby:</p>
-          {invoice.description ? <p className="items-intro">{invoice.description}</p> : null}
           <table className="items-table">
             <thead>
               <tr>
