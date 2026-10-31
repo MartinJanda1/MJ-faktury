@@ -1,5 +1,6 @@
 export type InvoiceKind = "issued" | "proforma" | "credit_note";
 export type InvoiceStatus = "draft" | "issued" | "partial" | "paid" | "cancelled";
+export type InvoiceLayout = "classic" | "idoklad";
 export type RecordSource = "manual" | "idoklad" | "csv" | "isdoc";
 
 export type SupplierDraft = {
@@ -52,6 +53,9 @@ export type InvoiceDraft = {
   variableSymbol: string;
   constantSymbol: string;
   specificSymbol: string;
+  paymentMethod: string;
+  orderNumber: string;
+  layout: InvoiceLayout;
   customerExternalId: string | null;
   customerName: string;
   customerIco: string;

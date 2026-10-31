@@ -1,4 +1,5 @@
 import { normalizeCurrency, normalizeVatRate, parseAmount, parseIsoDate, roundMoney, snapVat } from "./money";
+import { invoiceFieldDefaults } from "./invoice-fields";
 import type { CustomerDraft, InvoiceDraft, InvoiceStatus } from "./types";
 
 export type TabularImport = {
@@ -286,6 +287,9 @@ function invoiceFromRows(
     variableSymbol: pick(first, map, ["variabilnisymbol", "vs", "variablesymbol"]),
     constantSymbol: pick(first, map, ["konstantnisymbol", "ks", "constantsymbol"]),
     specificSymbol: pick(first, map, ["specifickysymbol", "ss"]),
+    ...invoiceFieldDefaults(),
+    orderNumber: pick(first, map, ["cisloobjednavky", "ordernumber", "objednavka"]),
+    paymentMethod: pick(first, map, ["zpusobplatby", "paymentmethod", "platba"]) || invoiceFieldDefaults().paymentMethod,
     customerExternalId: null,
     customerName: pick(first, map, CUSTOMER_NAME_KEYS),
     customerIco: pick(first, map, ["ico", "ic", "identificationnumber"]),

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDate, formatMoney, todayPrague } from "@/lib/money";
-import { getInvoiceFilterMeta, getInvoices } from "@/lib/queries";
+import { getInvoiceFilterMeta, getInvoices, type InvoiceSort, type SortDirection } from "@/lib/queries";
 import { cn } from "cn";
 
 export const metadata = { title: "Faktury" };
@@ -35,26 +35,47 @@ const months = [
   ["12", "Prosinec"],
 ] as const;
 
+type FilterState = {
+  q: string;
+  stav: string;
+  rok: string;
+  mesic: string;
+  odberatel: string;
+  razeni: InvoiceSort;
+  smer: SortDirection;
+};
+
 export default async function InvoicesPage({ searchParams }: PageProps<"/faktury">) {
   const params = await searchParams;
   const query = text(params.q);
   const status = text(params.stav) || "all";
   const year = text(params.rok);
   const month = text(params.mesic);
+  const customerId = text(params.odberatel);
+  const sort = (text(params.razeni) as InvoiceSort) || "issue";
+  const dir = (text(params.smer) as SortDirection) || "desc";
   const [{ invoices, total }, meta] = await Promise.all([
-    getInvoices({ query, status, year, month }),
+    getInvoices({ query, status, year, month, customerId, sort, dir }),
     getInvoiceFilterMeta(),
   ]);
   const currentYear = todayPrague().slice(0, 4);
   const years = meta.years.length ? meta.years : [currentYear];
-  const filter = { q: query, stav: status, rok: year, mesic: month };
+  const filter: FilterState = {
+    q: query,
+    stav: status,
+    rok: year,
+    mesic: month,
+    odberatel: customerId,
+    razeni: sort,
+    smer: dir,
+  };
 
   return (
     <div>
       <PageHeader
         eyebrow="Doklady"
         title="Faktury"
-        description="Filtrování podle období a stavu. Hledání bere číslo, odběratele, IČO i variabilní symbol."
+        description="Filtrování podle období, stavu a odběratele. Hledání bere číslo, odběratele, IČO i variabilní symbol."
         action={
           <Link href="/faktury/nova" className={buttonVariants()}>
             Nová faktura
@@ -63,7 +84,7 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
       />
 
       <div className="mb-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-        <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_8rem_10rem_auto]">
+        <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_8rem_10rem_minmax(10rem,1fr)_auto]">
           <label className="grid gap-1 text-sm sm:col-span-2 lg:col-span-1">
             <span className="text-muted-foreground">Hledat</span>
             <Input name="q" defaultValue={query} placeholder="Číslo, odběratel, VS…" />
@@ -89,7 +110,20 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
               ))}
             </select>
           </label>
+          <label className="grid gap-1 text-sm">
+            <span className="text-muted-foreground">Odběratel</span>
+            <select name="odberatel" defaultValue={customerId} className="h-9 rounded-lg border border-input bg-background px-3 text-sm">
+              <option value="">Všichni</option>
+              {meta.customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <input type="hidden" name="stav" value={status} />
+          <input type="hidden" name="razeni" value={sort} />
+          <input type="hidden" name="smer" value={dir} />
           <div className="flex items-end gap-2">
             <button type="submit" className={buttonVariants()}>
               Filtrovat
@@ -130,11 +164,11 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
       ) : (
         <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
           <div className="hidden grid-cols-[8rem_1fr_8rem_8rem_7rem] gap-3 border-b border-border px-4 py-2 text-xs text-muted-foreground md:grid">
-            <span>Číslo</span>
-            <span>Odběratel</span>
-            <span>Vystaveno</span>
-            <span>Stav</span>
-            <span className="text-right">Celkem</span>
+            <SortLink filter={filter} column="number" label="Číslo" />
+            <SortLink filter={filter} column="customer" label="Odběratel" />
+            <SortLink filter={filter} column="issue" label="Vystaveno" />
+            <SortLink filter={filter} column="status" label="Stav" />
+            <SortLink filter={filter} column="total" label="Celkem" className="text-right" />
           </div>
           {invoices.map((invoice) => (
             <Link
@@ -160,16 +194,41 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
   );
 }
 
+function SortLink({
+  filter,
+  column,
+  label,
+  className,
+}: {
+  filter: FilterState;
+  column: InvoiceSort;
+  label: string;
+  className?: string;
+}) {
+  const active = filter.razeni === column;
+  const nextDir: SortDirection = active && filter.smer === "asc" ? "desc" : active ? "asc" : column === "issue" || column === "total" ? "desc" : "asc";
+  const marker = active ? (filter.smer === "asc" ? " ↑" : " ↓") : "";
+  return (
+    <Link href={href({ ...filter, razeni: column, smer: nextDir })} className={cn("hover:text-foreground", className)}>
+      {label}
+      {marker}
+    </Link>
+  );
+}
+
 function text(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
-function href(params: { q: string; stav: string; rok: string; mesic: string }) {
+function href(params: FilterState) {
   const search = new URLSearchParams();
   if (params.q) search.set("q", params.q);
   if (params.stav && params.stav !== "all") search.set("stav", params.stav);
   if (params.rok) search.set("rok", params.rok);
   if (params.mesic) search.set("mesic", params.mesic);
+  if (params.odberatel) search.set("odberatel", params.odberatel);
+  if (params.razeni && params.razeni !== "issue") search.set("razeni", params.razeni);
+  if (params.smer && !(params.razeni === "issue" && params.smer === "desc")) search.set("smer", params.smer);
   const query = search.toString();
   return query ? `/faktury?${query}` : "/faktury";
 }

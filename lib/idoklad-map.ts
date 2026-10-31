@@ -1,4 +1,5 @@
 import { normalizeVatRate, parseAmount, parseIsoDate, roundMoney, vatFromType } from "./money";
+import { invoiceFieldDefaults } from "./invoice-fields";
 import type { CustomerDraft, InvoiceDraft, InvoiceKind, ItemDraft, SupplierDraft } from "./types";
 
 const CURRENCIES: Record<number, string> = {
@@ -184,6 +185,8 @@ export function mapIssuedDocument(raw: Record<string, unknown>, kind: InvoiceKin
     variableSymbol: text(raw.VariableSymbol),
     constantSymbol: text(raw.ConstantSymbol),
     specificSymbol: text(raw.SpecificSymbol),
+    ...invoiceFieldDefaults(),
+    orderNumber: text(raw.OrderNumber) || text(raw.OrderNumberText) || "",
     customerExternalId: partnerId ? `idoklad:contact:${partnerId}` : null,
     customerName: contactName(partner),
     customerIco: text(partner.IdentificationNumber),

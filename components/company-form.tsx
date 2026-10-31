@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { AresLookup } from "@/components/ares-lookup";
+import { BankAutofillFields } from "@/components/bank-autofill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { saveCompanyAction } from "@/lib/actions";
@@ -8,6 +10,16 @@ import type { Company } from "@/lib/types";
 
 export function CompanyForm({ company }: { company: Company }) {
   const [state, action, pending] = useActionState(saveCompanyAction, { error: "", saved: false });
+  const [name, setName] = useState(company.name);
+  const [ico, setIco] = useState(company.ico);
+  const [dic, setDic] = useState(company.dic);
+  const [street, setStreet] = useState(company.street);
+  const [city, setCity] = useState(company.city);
+  const [zip, setZip] = useState(company.zip);
+  const [country, setCountry] = useState(company.country || "Česká republika");
+  const [email, setEmail] = useState(company.email);
+  const [phone, setPhone] = useState(company.phone);
+
   return (
     <form action={action} className="grid gap-6">
       {state.saved ? <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">Údaje firmy jsou uložené.</p> : null}
@@ -15,44 +27,52 @@ export function CompanyForm({ company }: { company: Company }) {
       <section className="grid gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:grid-cols-2 sm:p-5">
         <h2 className="font-heading text-lg sm:col-span-2">Dodavatel na fakturách</h2>
         <Field label="Název">
-          <Input name="name" defaultValue={company.name} />
+          <Input name="name" value={name} onChange={(event) => setName(event.target.value)} />
         </Field>
         <Field label="E-mail">
-          <Input name="email" type="email" defaultValue={company.email} />
+          <Input name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
         </Field>
-        <Field label="IČO">
-          <Input name="ico" defaultValue={company.ico} />
-        </Field>
+        <div className="grid gap-2">
+          <Field label="IČO">
+            <Input name="ico" value={ico} onChange={(event) => setIco(event.target.value)} />
+          </Field>
+          <AresLookup
+            ico={ico}
+            onLoaded={(party) => {
+              setIco(party.ico);
+              setName(party.name);
+              setDic(party.dic);
+              setStreet(party.street);
+              setCity(party.city);
+              setZip(party.zip);
+              setCountry(party.country || "Česká republika");
+            }}
+          />
+        </div>
         <Field label="DIČ">
-          <Input name="dic" defaultValue={company.dic} />
+          <Input name="dic" value={dic} onChange={(event) => setDic(event.target.value)} />
         </Field>
         <Field label="Ulice">
-          <Input name="street" defaultValue={company.street} />
+          <Input name="street" value={street} onChange={(event) => setStreet(event.target.value)} />
         </Field>
         <Field label="Telefon">
-          <Input name="phone" defaultValue={company.phone} />
+          <Input name="phone" value={phone} onChange={(event) => setPhone(event.target.value)} />
         </Field>
         <Field label="PSČ">
-          <Input name="zip" defaultValue={company.zip} />
+          <Input name="zip" value={zip} onChange={(event) => setZip(event.target.value)} />
         </Field>
         <Field label="Město">
-          <Input name="city" defaultValue={company.city} />
+          <Input name="city" value={city} onChange={(event) => setCity(event.target.value)} />
         </Field>
         <Field label="Stát">
-          <Input name="country" defaultValue={company.country || "Česká republika"} />
+          <Input name="country" value={country} onChange={(event) => setCountry(event.target.value)} />
         </Field>
-        <Field label="Číslo účtu">
-          <Input name="bankAccount" defaultValue={company.bankAccount} />
-        </Field>
-        <Field label="Kód banky">
-          <Input name="bankCode" defaultValue={company.bankCode} />
-        </Field>
-        <Field label="IBAN">
-          <Input name="iban" defaultValue={company.iban} />
-        </Field>
-        <Field label="SWIFT">
-          <Input name="swift" defaultValue={company.swift} />
-        </Field>
+        <BankAutofillFields
+          bankAccount={company.bankAccount}
+          bankCode={company.bankCode}
+          iban={company.iban}
+          swift={company.swift}
+        />
       </section>
       <section className="grid gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-5">
         <h2 className="font-heading text-lg">Klíče k iDokladu</h2>

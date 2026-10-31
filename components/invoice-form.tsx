@@ -1,14 +1,16 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
+import { AresLookup } from "@/components/ares-lookup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { saveInvoiceAction } from "@/lib/actions";
+import { DEFAULT_LAYOUT, DEFAULT_PAYMENT_METHOD, PAYMENT_METHODS } from "@/lib/invoice-fields";
 import { formatMoney, lineTotals, parseAmount, todayPrague } from "@/lib/money";
-import type { Customer, Invoice, InvoiceKind, InvoiceStatus } from "@/lib/types";
+import type { Customer, Invoice, InvoiceKind, InvoiceLayout, InvoiceStatus } from "@/lib/types";
 
 type ItemState = {
   key: string;
@@ -61,6 +63,8 @@ export function InvoiceForm({
   const [taxDate, setTaxDate] = useState(invoice?.taxDate || today);
   const [status, setStatus] = useState<InvoiceStatus>(invoice?.status ?? "issued");
   const [kind, setKind] = useState<InvoiceKind>(invoice?.kind ?? "issued");
+  const [layout, setLayout] = useState<InvoiceLayout>(invoice?.layout ?? DEFAULT_LAYOUT);
+  const [paymentMethod, setPaymentMethod] = useState(invoice?.paymentMethod || DEFAULT_PAYMENT_METHOD);
   const [items, setItems] = useState<ItemState[]>(
     invoice?.items.length
       ? invoice.items.map((item) => ({
@@ -128,6 +132,8 @@ export function InvoiceForm({
       <input type="hidden" name="items" value={payload} />
       <input type="hidden" name="status" value={status} />
       <input type="hidden" name="kind" value={kind} />
+      <input type="hidden" name="layout" value={layout} />
+      <input type="hidden" name="paymentMethod" value={paymentMethod} />
       {state.error ? (
         <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
           {state.error}
@@ -149,6 +155,17 @@ export function InvoiceForm({
                 <SelectItem value="issued">Faktura</SelectItem>
                 <SelectItem value="proforma">Zálohová faktura</SelectItem>
                 <SelectItem value="credit_note">Dobropis</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Vzhled">
+            <Select value={layout} onValueChange={(value) => setLayout((value as InvoiceLayout) || "classic")}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="classic">Klasická</SelectItem>
+                <SelectItem value="idoklad">iDoklad</SelectItem>
               </SelectContent>
             </Select>
           </Field>
@@ -193,6 +210,23 @@ export function InvoiceForm({
           </Field>
           <Field label="Konstantní symbol">
             <Input name="constantSymbol" defaultValue={invoice?.constantSymbol ?? ""} />
+          </Field>
+          <Field label="Způsob platby">
+            <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value || DEFAULT_PAYMENT_METHOD)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAYMENT_METHODS.map((method) => (
+                  <SelectItem key={method} value={method}>
+                    {method}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Číslo objednávky">
+            <Input name="orderNumber" defaultValue={invoice?.orderNumber ?? ""} />
           </Field>
           <Field label="Měna">
             <Input name="currency" defaultValue={invoice?.currency || "CZK"} maxLength={3} />
@@ -249,11 +283,26 @@ export function InvoiceForm({
           <Field label="E-mail">
             <Input name="customerEmail" type="email" value={customerEmail} onChange={(event) => setCustomerEmail(event.target.value)} />
           </Field>
-          <Field label="IČO">
-            <Input name="customerIco" value={customerIco} onChange={(event) => setCustomerIco(event.target.value)} />
-          </Field>
+          <div className="grid gap-2">
+            <Field label="IČO">
+              <Input name="customerIco" value={customerIco} onChange={(event) => { setCustomerIco(event.target.value); setCustomerId(""); }} />
+            </Field>
+            <AresLookup
+              ico={customerIco}
+              onLoaded={(party) => {
+                setCustomerId("");
+                setCustomerIco(party.ico);
+                setCustomerName(party.name);
+                setCustomerDic(party.dic);
+                setCustomerStreet(party.street);
+                setCustomerCity(party.city);
+                setCustomerZip(party.zip);
+                setCustomerCountry(party.country || "Česká republika");
+              }}
+            />
+          </div>
           <Field label="DIČ">
-            <Input name="customerDic" value={customerDic} onChange={(event) => setCustomerDic(event.target.value)} />
+            <Input name="customerDic" value={customerDic} onChange={(event) => { setCustomerDic(event.target.value); setCustomerId(""); }} />
           </Field>
           <Field label="Ulice">
             <Input name="customerStreet" value={customerStreet} onChange={(event) => setCustomerStreet(event.target.value)} />

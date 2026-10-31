@@ -5,6 +5,7 @@ import {
   dashboardRows,
   getCustomerRow,
   getInvoiceRow,
+  listCustomerOptionsForInvoices,
   listCustomerRows,
   listInvoiceNumbers,
   listInvoiceRows,
@@ -14,6 +15,9 @@ import {
 } from "./persist";
 import { displayStatus } from "./status";
 import type { Invoice } from "./types";
+
+export type InvoiceSort = "issue" | "number" | "customer" | "total" | "status";
+export type SortDirection = "asc" | "desc";
 
 async function live() {
   await connection();
@@ -48,6 +52,8 @@ export type InvoiceListFilter = {
   month?: string;
   from?: string;
   to?: string;
+  sort?: InvoiceSort;
+  dir?: SortDirection;
 };
 
 export function resolvePeriod(filter: InvoiceListFilter): { from?: string; to?: string } {
@@ -68,24 +74,41 @@ export function resolvePeriod(filter: InvoiceListFilter): { from?: string; to?: 
   return {};
 }
 
+function sortInvoices(rows: Invoice[], sort: InvoiceSort | undefined, dir: SortDirection | undefined) {
+  const column: InvoiceSort = sort && ["issue", "number", "customer", "total", "status"].includes(sort) ? sort : "issue";
+  const direction: SortDirection = dir === "asc" || dir === "desc" ? dir : column === "number" || column === "customer" ? "asc" : "desc";
+  const factor = direction === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    let cmp = 0;
+    if (column === "number") cmp = a.number.localeCompare(b.number, "cs", { numeric: true });
+    else if (column === "customer") cmp = (a.customerName || "").localeCompare(b.customerName || "", "cs");
+    else if (column === "total") cmp = a.totalGross - b.totalGross;
+    else if (column === "status") cmp = displayStatus(a).localeCompare(displayStatus(b), "cs");
+    else cmp = a.issueDate.localeCompare(b.issueDate);
+    if (cmp === 0) cmp = a.number.localeCompare(b.number, "cs", { numeric: true });
+    return cmp * factor;
+  });
+}
+
 export async function getInvoices(filter: InvoiceListFilter) {
   await live();
   const period = resolvePeriod(filter);
   const rows = await listInvoiceRows({ ...filter, ...period });
   const status = filter.status || "all";
   const filtered = rows.filter((invoice) => matchesStatus(invoice, status));
+  const sorted = sortInvoices(filtered, filter.sort, filter.dir);
   return {
-    invoices: filtered.slice(0, 500),
-    total: filtered.length,
+    invoices: sorted.slice(0, 500),
+    total: sorted.length,
   };
 }
 
 export async function getInvoiceFilterMeta() {
   await live();
-  const years = await listInvoiceYears();
+  const [years, customers] = await Promise.all([listInvoiceYears(), listCustomerOptionsForInvoices()]);
   const current = todayPrague().slice(0, 4);
   if (!years.includes(current)) years.unshift(current);
-  return { years };
+  return { years, customers };
 }
 
 function matchesStatus(invoice: Invoice, status: string) {

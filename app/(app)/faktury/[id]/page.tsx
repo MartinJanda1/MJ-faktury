@@ -39,6 +39,7 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
 
   const isPaid = invoice.status === "paid";
   const isCancelled = invoice.status === "cancelled";
+  const readOnly = isPaid;
 
   return (
     <div>
@@ -52,12 +53,19 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
             <Link href={`/tisk/${invoice.id}?pdf=1`} className={buttonVariants({ variant: "outline" })}>
               PDF / tisk
             </Link>
-            <Link href={`/faktury/${invoice.id}/upravit`} className={buttonVariants({ variant: "outline" })}>
-              Upravit
-            </Link>
+            {readOnly ? null : (
+              <Link href={`/faktury/${invoice.id}/upravit`} className={buttonVariants({ variant: "outline" })}>
+                Upravit
+              </Link>
+            )}
           </>
         }
       />
+      {readOnly ? (
+        <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          Uhrazený doklad — pouze ke čtení. Pro úpravu nejprve zrušte úhradu.
+        </p>
+      ) : null}
       <div className="mb-4 flex flex-wrap gap-2">
         {!isPaid && !isCancelled ? (
           <form action={markPaidAction}>

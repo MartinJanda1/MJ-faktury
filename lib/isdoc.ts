@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { parseAmount, parseIsoDate, roundMoney, snapVat } from "./money";
+import { invoiceFieldDefaults } from "./invoice-fields";
 import type { CustomerDraft, InvoiceDraft, SupplierDraft } from "./types";
 
 export type IsdocImport = {
@@ -161,6 +162,7 @@ function mapInvoice(raw: Record<string, unknown>, filename: string, warnings: st
     variableSymbol: text(details.VariableSymbol) || text(details.ID),
     constantSymbol: text(details.ConstantSymbol),
     specificSymbol: text(details.SpecificSymbol),
+    ...invoiceFieldDefaults(),
     customerExternalId: null,
     customerName: customerParty.name,
     customerIco: customerParty.ico,

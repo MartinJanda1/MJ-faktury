@@ -32,6 +32,9 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
   const account = accountLabel(company);
   const iban = resolveIban(account, company.iban);
   const amount = invoice.totalGross;
+  const layout = invoice.layout === "idoklad" ? "idoklad" : "classic";
+  const paymentMethod = invoice.paymentMethod || "Převodem";
+  const showQrForTransfer = paymentMethod.toLowerCase().includes("převod") || paymentMethod.toLowerCase().includes("prevod");
   const spayd = buildSpaydString({
     iban,
     amount,
@@ -40,13 +43,14 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
     dueDate: invoice.dueDate,
     message: invoice.number ? `Faktura ${invoice.number}` : "Faktura",
   });
-  const qrVisible = showQr !== false && Boolean(spayd && amount > 0);
+  const qrVisible = showQr !== false && showQrForTransfer && Boolean(spayd && amount > 0);
   const totalText = formatCzechAmount(amount);
 
   return (
     <article
       id="invoice-document"
-      className="invoice-document layout-classic"
+      className={`invoice-document layout-${layout}`}
+      data-layout={layout}
       data-spayd={qrVisible ? spayd ?? undefined : undefined}
       data-invoice-number={invoice.number}
     >
@@ -163,8 +167,14 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
             <div className="payment-col">
               <div className="payment-line">
                 <span>Způsob platby:</span>
-                <span>Převodem</span>
+                <span>{paymentMethod}</span>
               </div>
+              {invoice.orderNumber ? (
+                <div className="payment-line">
+                  <span>Objednávka:</span>
+                  <span>{invoice.orderNumber}</span>
+                </div>
+              ) : null}
             </div>
             <div className="payment-total-col">
               <span className="label">K úhradě</span>
@@ -190,6 +200,12 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
               <span>Datum splatnosti:</span>
               <strong>{formatDate(invoice.dueDate)}</strong>
             </div>
+            {invoice.orderNumber ? (
+              <div className="date-item layout-classic-extra">
+                <span>Číslo objednávky:</span>
+                <strong>{invoice.orderNumber}</strong>
+              </div>
+            ) : null}
           </div>
         </div>
       </section>

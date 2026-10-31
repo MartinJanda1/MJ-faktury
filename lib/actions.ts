@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
+import { normalizeLayout, normalizeOrderNumber, normalizePaymentMethod } from "./invoice-fields";
 import { todayPrague } from "./money";
 import {
   deleteCustomer,
@@ -15,7 +16,7 @@ import {
   setInvoiceStatus,
   upsertInvoice,
 } from "./persist";
-import { addDaysIso, suggestNextNumber } from "./status";
+import { addDaysIso, suggestNextNumber, variableSymbolFromNumber } from "./status";
 import type { InvoiceKind, InvoiceStatus, ItemDraft } from "./types";
 
 function refresh() {
@@ -108,6 +109,12 @@ export async function saveInvoiceAction(_previous: { error: string }, formData: 
   const safeKind: InvoiceKind = kind === "proforma" || kind === "credit_note" ? kind : "issued";
   const customerId = String(formData.get("customerId") ?? "");
   const invoiceId = String(formData.get("id") ?? "") || null;
+  if (invoiceId) {
+    const existing = await getInvoiceRow(invoiceId);
+    if (existing?.status === "paid") {
+      return { error: "Uhrazený doklad nelze upravovat. Nejprve zrušte úhradu." };
+    }
+  }
   let result: { id: string };
   try {
     result = await upsertInvoice(
@@ -119,6 +126,9 @@ export async function saveInvoiceAction(_previous: { error: string }, formData: 
         variableSymbol: String(formData.get("variableSymbol") ?? ""),
         constantSymbol: String(formData.get("constantSymbol") ?? ""),
         specificSymbol: String(formData.get("specificSymbol") ?? ""),
+        paymentMethod: normalizePaymentMethod(formData.get("paymentMethod")),
+        orderNumber: normalizeOrderNumber(formData.get("orderNumber")),
+        layout: normalizeLayout(formData.get("layout")),
         customerExternalId: null,
         customerName,
         customerIco: String(formData.get("customerIco") ?? ""),
@@ -195,15 +205,19 @@ export async function duplicateInvoiceAction(formData: FormData) {
   if (!source) redirect("/faktury");
   const today = todayPrague();
   const numbers = await listInvoiceNumbers();
+  const nextNumber = suggestNextNumber(numbers, today);
   const result = await upsertInvoice(
     {
       externalId: null,
       source: "manual",
       kind: source.kind,
-      number: suggestNextNumber(numbers, today),
-      variableSymbol: "",
+      number: nextNumber,
+      variableSymbol: variableSymbolFromNumber(nextNumber),
       constantSymbol: source.constantSymbol,
       specificSymbol: "",
+      paymentMethod: source.paymentMethod || "Převodem",
+      orderNumber: "",
+      layout: source.layout || "classic",
       customerExternalId: null,
       customerName: source.customerName,
       customerIco: source.customerIco,

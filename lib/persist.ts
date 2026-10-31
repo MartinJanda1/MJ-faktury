@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { withInvoiceDefaults } from "./invoice-fields";
 import { lineTotals, roundMoney } from "./money";
 import { loadStore, updateStore, type StoreDocument } from "./store";
 import type {
@@ -159,6 +160,7 @@ function upsertInvoiceInDoc(
     if (clash) throw new Error(`Doklad ${number} už existuje.`);
   }
 
+  const defaults = withInvoiceDefaults(draft);
   const header = {
     externalId: draft.externalId ?? existing?.externalId ?? null,
     source: draft.source,
@@ -167,6 +169,9 @@ function upsertInvoiceInDoc(
     variableSymbol: draft.variableSymbol.trim(),
     constantSymbol: draft.constantSymbol.trim(),
     specificSymbol: draft.specificSymbol.trim(),
+    paymentMethod: defaults.paymentMethod,
+    orderNumber: defaults.orderNumber,
+    layout: defaults.layout,
     customerId,
     customerName: draft.customerName.trim(),
     customerIco: draft.customerIco.trim(),
@@ -310,7 +315,7 @@ export async function getInvoiceRow(id: string): Promise<Invoice | null> {
   const invoice = doc.invoices.find((row) => row.id === id);
   if (!invoice) return null;
   return {
-    ...invoice,
+    ...withInvoiceDefaults(invoice),
     items: doc.items.filter((item) => item.invoiceId === id).sort((a, b) => a.position - b.position),
   };
 }
@@ -432,7 +437,16 @@ export async function listInvoiceRows(filter: {
     );
   }
   rows.sort((a, b) => b.issueDate.localeCompare(a.issueDate) || b.number.localeCompare(a.number));
-  return rows.map((invoice) => ({ ...invoice, items: [] }));
+  return rows.map((invoice) => ({ ...withInvoiceDefaults(invoice), items: [] }));
+}
+
+export async function listCustomerOptionsForInvoices(): Promise<Array<{ id: string; name: string }>> {
+  const doc = await loadStore();
+  const used = new Set(doc.invoices.map((invoice) => invoice.customerId).filter(Boolean));
+  return doc.customers
+    .filter((customer) => used.has(customer.id))
+    .map((customer) => ({ id: customer.id, name: customer.name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "cs"));
 }
 
 export async function listInvoiceYears(): Promise<string[]> {
@@ -452,7 +466,7 @@ export async function listInvoiceNumbers(): Promise<string[]> {
 export async function dashboardRows() {
   const doc = await loadStore();
   return {
-    invoices: doc.invoices.map((invoice) => ({ ...invoice, items: [] })),
+    invoices: doc.invoices.map((invoice) => ({ ...withInvoiceDefaults(invoice), items: [] })),
     customerCount: doc.customers.length,
   };
 }

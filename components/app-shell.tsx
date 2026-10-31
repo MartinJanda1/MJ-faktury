@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Download, FileText, LayoutDashboard, Settings, Users } from "lucide-react";
+import { BarChart3, CircleHelp, Download, FileText, LayoutDashboard, Settings, Users } from "lucide-react";
 import { cn } from "cn";
 
 const links = [
@@ -12,6 +12,7 @@ const links = [
   { href: "/odberatele", label: "Odběratelé", icon: Users },
   { href: "/import", label: "Import", icon: Download },
   { href: "/nastaveni", label: "Nastavení", icon: Settings },
+  { href: "/napoveda", label: "Nápověda", icon: CircleHelp },
 ];
 
 function isActive(pathname: string, href: string) {
