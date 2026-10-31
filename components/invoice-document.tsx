@@ -216,12 +216,6 @@ export async function InvoiceDocument({ invoice, company, showQr }: InvoiceDocum
                 </div>
               ) : null}
             </div>
-            <div className="payment-total-col">
-              <span className="label">K úhradě</span>
-              <span className="amount">
-                {totalText} Kč
-              </span>
-            </div>
           </div>
         </div>
       </section>
