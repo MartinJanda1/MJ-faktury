@@ -21,7 +21,7 @@ export default function HelpPage() {
             </li>
             <li>Vyberte odběratele z adresáře, nebo vyplňte údaje ručně. IČO lze načíst z ARES.</li>
             <li>Číslo dokladu se navrhne automaticky (řada <code className="text-xs">číslo/rok</code>, VF nebo číselná přípona).</li>
-            <li>Zvolte vzhled Klasická / iDoklad, způsob platby a případně číslo objednávky.</li>
+            <li>Výchozí vzhled je Moderní; způsob platby a případně číslo objednávky nastavíte u dokladu.</li>
           </ol>
         </section>
 

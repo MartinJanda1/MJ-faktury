@@ -14,6 +14,7 @@ import {
   markUnpaidAction,
   restoreInvoiceAction,
 } from "@/lib/actions";
+import { DEFAULT_LAYOUT } from "@/lib/invoice-fields";
 import { getCompany, getInvoice } from "@/lib/queries";
 import { isInvoiceReadOnly, kindLabel } from "@/lib/status";
 
@@ -121,14 +122,14 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
 
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            Náhled (klasická). Vzhled PDF zvolíte před stažením.
+            Náhled (moderní). Vzhled PDF zvolíte před stažením.
           </p>
           <InvoicePdfActions filename={invoice.number} />
         </div>
       </div>
 
       <div className="invoice-document-shell overflow-x-auto rounded-xl ring-1 ring-foreground/10">
-        <InvoiceDocument invoice={invoice} company={company} layout="classic" />
+        <InvoiceDocument invoice={invoice} company={company} layout={DEFAULT_LAYOUT} />
       </div>
     </div>
   );

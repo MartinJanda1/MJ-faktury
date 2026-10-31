@@ -24,7 +24,7 @@ type InvoicePdfActionsProps = {
   syncUrl?: boolean;
   /**
    * When true (print page), restore last layout from localStorage if URL has none.
-   * Detail preview keeps classic until the user picks a style.
+   * Detail preview starts at modern (DEFAULT_LAYOUT) until the user picks a style.
    */
   useStoredPreference?: boolean;
 };

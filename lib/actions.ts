@@ -243,7 +243,7 @@ export async function duplicateInvoiceAction(formData: FormData) {
       specificSymbol: "",
       paymentMethod: source.paymentMethod || "Převodem",
       orderNumber: "",
-      layout: source.layout || "classic",
+      layout: source.layout || DEFAULT_LAYOUT,
       customerExternalId: null,
       customerName: source.customerName,
       customerIco: source.customerIco,

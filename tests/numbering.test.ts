@@ -23,7 +23,7 @@ test("withInvoiceDefaults fills missing invoice fields", () => {
   const normalized = withInvoiceDefaults({ number: "1/2026" });
   assert.equal(normalized.paymentMethod, "Převodem");
   assert.equal(normalized.orderNumber, "");
-  assert.equal(normalized.layout, "classic");
+  assert.equal(normalized.layout, "modern");
 });
 
 test("normalizeLayout maps modern, gallery layouts, and legacy idoklad", () => {
@@ -38,9 +38,9 @@ test("normalizeLayout maps modern, gallery layouts, and legacy idoklad", () => {
   assert.equal(normalizeLayout("studio"), "studio");
   assert.equal(normalizeLayout("accounting"), "accounting");
   assert.equal(normalizeLayout("soft"), "soft");
-  assert.equal(normalizeLayout(""), "classic");
-  assert.equal(normalizeLayout(undefined), "classic");
-  assert.equal(normalizeLayout("unknown"), "classic");
+  assert.equal(normalizeLayout(""), "modern");
+  assert.equal(normalizeLayout(undefined), "modern");
+  assert.equal(normalizeLayout("unknown"), "modern");
 });
 
 test("unpaid invoice statuses stay editable; paid and cancelled are read-only", () => {

@@ -45,7 +45,7 @@ async function buildQrDataUrl(spayd: string): Promise<string | null> {
 export type InvoiceDocumentProps = {
   invoice: Invoice;
   company: Company;
-  /** Visual style for print/PDF. Defaults to classic; print toolbar can override. */
+  /** Visual style for print/PDF. Defaults to modern; print toolbar can override. */
   layout?: InvoiceLayout;
   /** Hide QR canvas host when SPAYD cannot be built (still reserves structure when true). */
   showQr?: boolean;
@@ -343,6 +343,10 @@ export async function InvoiceDocument({ invoice, company, layout: layoutProp, sh
           <p>{company.footerNote}</p>
         </footer>
       ) : null}
+
+      <footer className="inv-app-attribution" aria-label="MJ Faktury">
+        <p>Vygenerováno v MJ Faktury</p>
+      </footer>
     </article>
   );
 }

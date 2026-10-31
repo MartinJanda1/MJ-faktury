@@ -1,7 +1,7 @@
 import type { Invoice, InvoiceDraft, InvoiceLayout } from "./types";
 
 export const DEFAULT_PAYMENT_METHOD = "Převodem";
-export const DEFAULT_LAYOUT: InvoiceLayout = "classic";
+export const DEFAULT_LAYOUT: InvoiceLayout = "modern";
 
 export const PAYMENT_METHODS = ["Převodem", "Hotově", "Kartou", "Dobírkou", "Zápočtem"] as const;
 
@@ -30,11 +30,11 @@ export function normalizeLayout(value: unknown): InvoiceLayout {
   // Legacy "idoklad" maps to the modern style.
   if (raw === "idoklad") return "modern";
   if (LAYOUT_SET.has(raw)) return raw as InvoiceLayout;
-  return "classic";
+  return DEFAULT_LAYOUT;
 }
 
 export function layoutLabel(layout: InvoiceLayout): string {
-  return INVOICE_LAYOUTS.find((row) => row.value === layout)?.label ?? "Klasická";
+  return INVOICE_LAYOUTS.find((row) => row.value === layout)?.label ?? "Moderní";
 }
 
 /** CSS class names for every known layout (incl. legacy aliases). */
