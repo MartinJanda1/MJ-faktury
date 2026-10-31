@@ -262,6 +262,10 @@ test("repeated import updates the same invoice and customer", async () => {
   assert.equal(invoice?.status, "paid");
   assert.equal(invoice?.customerId, customers[0].id);
   assert.equal(invoice?.items.length, 1);
+  // Empty invoice address snapshot is filled from the linked customer.
+  assert.equal(invoice?.customerStreet, "Dlouhá 12");
+  assert.equal(invoice?.customerCity, "Praha");
+  assert.equal(invoice?.customerZip, "110 00");
 });
 
 test("faktura-app JSON maps bank payment and non-VAT supplier note into company", async () => {

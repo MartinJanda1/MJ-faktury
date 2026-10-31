@@ -7,11 +7,36 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { saveInvoiceAction } from "@/lib/actions";
+import { fillBlankCustomerAddress } from "@/lib/customer-address";
 import { DEFAULT_PAYMENT_METHOD, PAYMENT_METHODS } from "@/lib/invoice-fields";
 import { formatMoney, lineTotals, parseAmount, todayPrague } from "@/lib/money";
 import { kindLabel, statusLabel } from "@/lib/status";
 import type { Company, Customer, Invoice, InvoiceKind, InvoiceStatus } from "@/lib/types";
 import { isNonVatPayer } from "@/lib/vat";
+
+function initialBuyer(invoice: Invoice | undefined, customers: Customer[]) {
+  const linked = invoice?.customerId ? customers.find((row) => row.id === invoice.customerId) : undefined;
+  const filled = fillBlankCustomerAddress(
+    {
+      customerStreet: invoice?.customerStreet ?? "",
+      customerCity: invoice?.customerCity ?? "",
+      customerZip: invoice?.customerZip ?? "",
+      customerCountry: invoice?.customerCountry ?? "",
+    },
+    linked,
+  );
+  return {
+    customerId: invoice?.customerId ?? "",
+    customerName: invoice?.customerName || linked?.name || "",
+    customerIco: invoice?.customerIco || linked?.ico || "",
+    customerDic: invoice?.customerDic || linked?.dic || "",
+    customerStreet: filled.customerStreet,
+    customerCity: filled.customerCity,
+    customerZip: filled.customerZip,
+    customerCountry: filled.customerCountry || "Česká republika",
+    customerEmail: invoice?.customerEmail || linked?.email || "",
+  };
+}
 
 type ItemState = {
   key: string;
@@ -70,15 +95,16 @@ export function InvoiceForm({
 }) {
   const [state, action, pending] = useActionState(saveInvoiceAction, { error: "" });
   const today = todayPrague();
-  const [customerId, setCustomerId] = useState(invoice?.customerId ?? "");
-  const [customerName, setCustomerName] = useState(invoice?.customerName ?? "");
-  const [customerIco, setCustomerIco] = useState(invoice?.customerIco ?? "");
-  const [customerDic, setCustomerDic] = useState(invoice?.customerDic ?? "");
-  const [customerStreet, setCustomerStreet] = useState(invoice?.customerStreet ?? "");
-  const [customerCity, setCustomerCity] = useState(invoice?.customerCity ?? "");
-  const [customerZip, setCustomerZip] = useState(invoice?.customerZip ?? "");
-  const [customerCountry, setCustomerCountry] = useState(invoice?.customerCountry || "Česká republika");
-  const [customerEmail, setCustomerEmail] = useState(invoice?.customerEmail ?? "");
+  const buyerSeed = initialBuyer(invoice, customers);
+  const [customerId, setCustomerId] = useState(buyerSeed.customerId);
+  const [customerName, setCustomerName] = useState(buyerSeed.customerName);
+  const [customerIco, setCustomerIco] = useState(buyerSeed.customerIco);
+  const [customerDic, setCustomerDic] = useState(buyerSeed.customerDic);
+  const [customerStreet, setCustomerStreet] = useState(buyerSeed.customerStreet);
+  const [customerCity, setCustomerCity] = useState(buyerSeed.customerCity);
+  const [customerZip, setCustomerZip] = useState(buyerSeed.customerZip);
+  const [customerCountry, setCustomerCountry] = useState(buyerSeed.customerCountry);
+  const [customerEmail, setCustomerEmail] = useState(buyerSeed.customerEmail);
   const [issueDate, setIssueDate] = useState(invoice?.issueDate || today);
   const [dueDate, setDueDate] = useState(invoice?.dueDate || plusDays(today, 14));
   const [taxDate, setTaxDate] = useState(invoice?.taxDate || today);

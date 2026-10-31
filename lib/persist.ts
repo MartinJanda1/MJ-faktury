@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { fillBlankCustomerAddress } from "./customer-address";
 import { withInvoiceDefaults } from "./invoice-fields";
 import { lineTotals, roundMoney } from "./money";
 import { loadStore, updateStore, type StoreDocument } from "./store";
@@ -160,6 +161,18 @@ function upsertInvoiceInDoc(
     if (clash) throw new Error(`Doklad ${number} už existuje.`);
   }
 
+  // When picking from the address book, copy any missing address into the invoice snapshot.
+  const linkedCustomer = customerId ? doc.customers.find((customer) => customer.id === customerId) : undefined;
+  const buyer = fillBlankCustomerAddress(
+    {
+      customerStreet: draft.customerStreet,
+      customerCity: draft.customerCity,
+      customerZip: draft.customerZip,
+      customerCountry: draft.customerCountry,
+    },
+    linkedCustomer,
+  );
+
   const defaults = withInvoiceDefaults(draft);
   const header = {
     externalId: draft.externalId ?? existing?.externalId ?? null,
@@ -176,10 +189,10 @@ function upsertInvoiceInDoc(
     customerName: draft.customerName.trim(),
     customerIco: draft.customerIco.trim(),
     customerDic: draft.customerDic.trim(),
-    customerStreet: draft.customerStreet.trim(),
-    customerCity: draft.customerCity.trim(),
-    customerZip: draft.customerZip.trim(),
-    customerCountry: draft.customerCountry.trim(),
+    customerStreet: buyer.customerStreet.trim(),
+    customerCity: buyer.customerCity.trim(),
+    customerZip: buyer.customerZip.trim(),
+    customerCountry: buyer.customerCountry.trim(),
     customerEmail: draft.customerEmail.trim(),
     issueDate: draft.issueDate,
     dueDate: draft.dueDate,
@@ -333,8 +346,12 @@ export async function getInvoiceRow(id: string): Promise<Invoice | null> {
   const doc = await loadStore();
   const invoice = doc.invoices.find((row) => row.id === id);
   if (!invoice) return null;
+  const linkedCustomer = invoice.customerId
+    ? doc.customers.find((customer) => customer.id === invoice.customerId)
+    : undefined;
+  const withAddress = fillBlankCustomerAddress(withInvoiceDefaults(invoice), linkedCustomer);
   return {
-    ...withInvoiceDefaults(invoice),
+    ...withAddress,
     items: doc.items.filter((item) => item.invoiceId === id).sort((a, b) => a.position - b.position),
   };
 }
