@@ -42,3 +42,7 @@ next-env.d.ts
 
 # local invoice database (contains business data and API secrets)
 /data
+
+# ephemeral agent scratch
+/agent-tools
+/tmp
