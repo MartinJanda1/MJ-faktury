@@ -41,22 +41,20 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
   const status = text(params.stav) || "all";
   const year = text(params.rok);
   const month = text(params.mesic);
-  const from = text(params.od);
-  const to = text(params.do);
   const [{ invoices, total }, meta] = await Promise.all([
-    getInvoices({ query, status, year, month, from, to }),
+    getInvoices({ query, status, year, month }),
     getInvoiceFilterMeta(),
   ]);
   const currentYear = todayPrague().slice(0, 4);
   const years = meta.years.length ? meta.years : [currentYear];
-  const filter = { q: query, stav: status, rok: year, mesic: month, od: from, do: to };
+  const filter = { q: query, stav: status, rok: year, mesic: month };
 
   return (
     <div>
       <PageHeader
         eyebrow="Doklady"
         title="Faktury"
-        description="Filtrování podle období, stavu a čísla. Hledání bere i odběratele, IČO a variabilní symbol."
+        description="Filtrování podle období a stavu. Hledání bere číslo, odběratele, IČO i variabilní symbol."
         action={
           <Link href="/faktury/nova" className={buttonVariants()}>
             Nová faktura
@@ -64,64 +62,61 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
         }
       />
 
-      <form className="mb-4 grid gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:grid-cols-2 lg:grid-cols-6">
-        <label className="grid gap-1 text-sm lg:col-span-2">
-          <span className="text-muted-foreground">Hledat</span>
-          <Input name="q" defaultValue={query} placeholder="Číslo, odběratel, VS…" />
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted-foreground">Rok</span>
-          <select name="rok" defaultValue={year} className="h-9 rounded-lg border border-input bg-background px-3 text-sm">
-            <option value="">Všechny roky</option>
-            {years.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted-foreground">Měsíc</span>
-          <select name="mesic" defaultValue={month} className="h-9 rounded-lg border border-input bg-background px-3 text-sm">
-            {months.map(([value, label]) => (
-              <option key={label} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted-foreground">Od</span>
-          <Input type="date" name="od" defaultValue={from} />
-        </label>
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted-foreground">Do</span>
-          <Input type="date" name="do" defaultValue={to} />
-        </label>
-        <input type="hidden" name="stav" value={status} />
-        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-6">
-          <button type="submit" className={buttonVariants()}>
-            Filtrovat
-          </button>
-          <Link href="/faktury" className={buttonVariants({ variant: "outline" })}>
-            Zrušit filtr
-          </Link>
-        </div>
-      </form>
+      <div className="mb-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+        <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_8rem_10rem_auto]">
+          <label className="grid gap-1 text-sm sm:col-span-2 lg:col-span-1">
+            <span className="text-muted-foreground">Hledat</span>
+            <Input name="q" defaultValue={query} placeholder="Číslo, odběratel, VS…" />
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="text-muted-foreground">Rok</span>
+            <select name="rok" defaultValue={year} className="h-9 rounded-lg border border-input bg-background px-3 text-sm">
+              <option value="">Všechny roky</option>
+              {years.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm">
+            <span className="text-muted-foreground">Měsíc</span>
+            <select name="mesic" defaultValue={month} className="h-9 rounded-lg border border-input bg-background px-3 text-sm">
+              {months.map(([value, label]) => (
+                <option key={label} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <input type="hidden" name="stav" value={status} />
+          <div className="flex items-end gap-2">
+            <button type="submit" className={buttonVariants()}>
+              Filtrovat
+            </button>
+            <Link href="/faktury" className={buttonVariants({ variant: "outline" })}>
+              Zrušit
+            </Link>
+          </div>
+        </form>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {statuses.map(([value, label]) => (
-          <Link
-            key={value}
-            href={href({ ...filter, stav: value })}
-            className={cn(
-              "rounded-full px-3 py-1 text-sm",
-              status === value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-            )}
-          >
-            {label}
-          </Link>
-        ))}
+        <div className="mt-4 border-t border-border pt-3">
+          <p className="mb-2 text-sm text-muted-foreground">Stav faktury</p>
+          <div className="flex flex-wrap gap-2">
+            {statuses.map(([value, label]) => (
+              <Link
+                key={value}
+                href={href({ ...filter, stav: value })}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-sm",
+                  status === value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80",
+                )}
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
       </div>
 
       {invoices.length === 0 ? (
@@ -169,21 +164,12 @@ function text(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
-function href(params: {
-  q: string;
-  stav: string;
-  rok: string;
-  mesic: string;
-  od: string;
-  do: string;
-}) {
+function href(params: { q: string; stav: string; rok: string; mesic: string }) {
   const search = new URLSearchParams();
   if (params.q) search.set("q", params.q);
   if (params.stav && params.stav !== "all") search.set("stav", params.stav);
   if (params.rok) search.set("rok", params.rok);
   if (params.mesic) search.set("mesic", params.mesic);
-  if (params.od) search.set("od", params.od);
-  if (params.do) search.set("do", params.do);
   const query = search.toString();
   return query ? `/faktury?${query}` : "/faktury";
 }
