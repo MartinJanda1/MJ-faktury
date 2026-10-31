@@ -287,19 +287,6 @@ export function InvoicePdfActions({
     }
   }
 
-  async function onPrint() {
-    cleanupPdfExportArtifacts();
-    setError(null);
-    setBusy(true);
-    try {
-      applyLayoutToDocument(layout);
-      await prepareInvoiceForExport();
-      window.print();
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="no-print flex flex-wrap items-center gap-3" aria-busy={busy || undefined}>
       <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -319,9 +306,6 @@ export function InvoicePdfActions({
       </label>
       <Button type="button" onClick={() => void onDownload()} disabled={busy}>
         {busy ? "Generuji PDF…" : "Stáhnout PDF"}
-      </Button>
-      <Button type="button" variant="outline" onClick={() => void onPrint()} disabled={busy}>
-        Tisknout
       </Button>
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       {hint ? <p className="text-sm text-amber-800">{hint}</p> : null}
