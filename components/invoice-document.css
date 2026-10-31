@@ -433,6 +433,15 @@
   padding: 8mm 8mm 6mm 6mm;
 }
 
+/*
+ * html2pdf.js appends a full-viewport `.html2pdf__overlay` before capture and only
+ * removes it on success. On html2canvas failure the invisible overlay stays and
+ * traps all clicks. Never let leftovers block the UI.
+ */
+.html2pdf__overlay {
+  pointer-events: none !important;
+}
+
 .pdf-exporting .payment-bar,
 .pdf-exporting .recap-bar {
   background-color: #00b5c8 !important;
