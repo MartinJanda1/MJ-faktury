@@ -95,8 +95,25 @@ async function writeBlob(doc: StoreDocument) {
   });
 }
 
+function migrateCustomer(raw: Customer): Customer {
+  return {
+    ...raw,
+    bankAccount: raw.bankAccount ?? "",
+    bankCode: raw.bankCode ?? "",
+    iban: raw.iban ?? "",
+    swift: raw.swift ?? "",
+    bankName: raw.bankName ?? "",
+  };
+}
+
+function migrateDocument(doc: StoreDocument): StoreDocument {
+  doc.customers = (doc.customers ?? []).map(migrateCustomer);
+  return doc;
+}
+
 export async function loadStore(): Promise<StoreDocument> {
-  return useBlob() ? readBlob() : readLocal();
+  const doc = useBlob() ? await readBlob() : await readLocal();
+  return migrateDocument(doc);
 }
 
 export async function saveStore(doc: StoreDocument) {

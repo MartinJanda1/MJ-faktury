@@ -34,6 +34,12 @@ export type CustomerDraft = {
   email: string;
   phone: string;
   note: string;
+  /** Customer’s own payment details (not used as invoice supplier bank). */
+  bankAccount: string;
+  bankCode: string;
+  iban: string;
+  swift: string;
+  bankName: string;
 };
 
 export type ItemDraft = {

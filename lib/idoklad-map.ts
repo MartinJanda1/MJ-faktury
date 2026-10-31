@@ -46,6 +46,11 @@ export function mapContact(raw: Record<string, unknown>): CustomerDraft | null {
     email: text(raw.Email),
     phone: text(raw.Phone) || text(raw.Mobile),
     note: "",
+    bankAccount: text(raw.AccountNumber),
+    bankCode: text(raw.BankCode),
+    iban: text(raw.Iban),
+    swift: text(raw.Swift),
+    bankName: text(raw.BankName) || text(raw.Bank),
   };
 }
 

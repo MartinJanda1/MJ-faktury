@@ -76,6 +76,11 @@ export async function saveCustomerAction(_previous: { error: string }, formData:
       email: String(formData.get("email") ?? ""),
       phone: String(formData.get("phone") ?? ""),
       note: String(formData.get("note") ?? ""),
+      bankAccount: String(formData.get("bankAccount") ?? ""),
+      bankCode: String(formData.get("bankCode") ?? ""),
+      iban: String(formData.get("iban") ?? ""),
+      swift: String(formData.get("swift") ?? ""),
+      bankName: String(formData.get("bankName") ?? ""),
     });
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Odběratele se nepodařilo uložit." };

@@ -220,6 +220,14 @@ function contactFromRow(row: string[], map: Map<string, number>): CustomerDraft 
     "name",
   ]);
   const person = [pick(row, map, ["jmeno", "firstname"]), pick(row, map, ["prijmeni", "surname"])].filter(Boolean).join(" ");
+  const accountRaw = pick(row, map, ["cislouctu", "bankovniucet", "bankaccount", "accountnumber", "ucet"]);
+  let bankAccount = accountRaw;
+  let bankCode = pick(row, map, ["kodbanky", "bankcode"]);
+  if (!bankCode && accountRaw.includes("/")) {
+    const [left, right] = accountRaw.split("/", 2);
+    bankAccount = left.trim();
+    bankCode = right.trim();
+  }
   return {
     externalId: null,
     source: "csv",
@@ -233,6 +241,11 @@ function contactFromRow(row: string[], map: Map<string, number>): CustomerDraft 
     email: pick(row, map, ["email", "mail", "emailovaadresa"]),
     phone: pick(row, map, ["telefon", "phone", "mobil", "mobile"]),
     note: pick(row, map, ["poznamka", "note"]),
+    bankAccount,
+    bankCode,
+    iban: pick(row, map, ["iban"]),
+    swift: pick(row, map, ["swift", "bic"]),
+    bankName: pick(row, map, ["nazevbanky", "bankname"]),
   };
 }
 
@@ -250,6 +263,11 @@ function customerFromInvoice(invoice: InvoiceDraft): CustomerDraft {
     email: invoice.customerEmail,
     phone: "",
     note: "",
+    bankAccount: "",
+    bankCode: "",
+    iban: "",
+    swift: "",
+    bankName: "",
   };
 }
 

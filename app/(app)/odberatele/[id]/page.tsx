@@ -46,6 +46,27 @@ export default async function CustomerPage({ params }: PageProps<"/odberatele/[i
           <p>{[customer.street, [customer.zip, customer.city].filter(Boolean).join(" "), customer.country].filter(Boolean).join(", ") || "Adresa není vyplněná"}</p>
           <p className="mt-2 text-muted-foreground">{customer.email || "E-mail není vyplněný"}</p>
           <p className="text-muted-foreground">{customer.phone || "Telefon není vyplněný"}</p>
+          <div className="mt-4 space-y-1 border-t border-border pt-3">
+            <p className="font-medium">Bankovní údaje</p>
+            {customer.bankAccount || customer.bankCode || customer.iban || customer.swift || customer.bankName ? (
+              <>
+                <p>
+                  {[
+                    customer.bankAccount && customer.bankCode
+                      ? `${customer.bankAccount}/${customer.bankCode}`
+                      : customer.bankAccount || "",
+                    customer.bankName,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "—"}
+                </p>
+                {customer.iban ? <p className="text-muted-foreground">IBAN: {customer.iban}</p> : null}
+                {customer.swift ? <p className="text-muted-foreground">SWIFT: {customer.swift}</p> : null}
+              </>
+            ) : (
+              <p className="text-muted-foreground">Bankovní údaje nejsou vyplněné</p>
+            )}
+          </div>
           {customer.note ? <p className="mt-3 leading-6">{customer.note}</p> : null}
           <p className="mt-3 text-xs text-muted-foreground">Zdroj: {sourceLabel(customer.source)}</p>
           <div className="mt-4">

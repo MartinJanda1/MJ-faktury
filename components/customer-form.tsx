@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { AresLookup } from "@/components/ares-lookup";
+import { BankAutofillFields } from "@/components/bank-autofill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,6 +71,20 @@ export function CustomerForm({ customer }: { customer?: Customer }) {
         <Field label="Stát">
           <Input name="country" value={country} onChange={(event) => setCountry(event.target.value)} />
         </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <h3 className="font-heading text-base sm:col-span-2">Bankovní údaje</h3>
+        <p className="sm:col-span-2 text-xs text-muted-foreground">
+          Platební údaje odběratele (pro kartotéku). Na fakturu se jako účet dodavatele bere banka z nastavení firmy.
+        </p>
+        <BankAutofillFields
+          bankAccount={customer?.bankAccount ?? ""}
+          bankCode={customer?.bankCode ?? ""}
+          iban={customer?.iban ?? ""}
+          swift={customer?.swift ?? ""}
+          bankName={customer?.bankName ?? ""}
+          showQrHint={false}
+        />
       </div>
       <Field label="Poznámka">
         <Textarea name="note" defaultValue={customer?.note ?? ""} rows={3} />

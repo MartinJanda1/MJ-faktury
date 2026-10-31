@@ -28,6 +28,11 @@ function blankCustomer(partial: Partial<CustomerDraft> & Pick<CustomerDraft, "na
     email: (partial.email ?? "").trim(),
     phone: (partial.phone ?? "").trim(),
     note: (partial.note ?? "").trim(),
+    bankAccount: (partial.bankAccount ?? "").trim(),
+    bankCode: (partial.bankCode ?? "").trim(),
+    iban: (partial.iban ?? "").trim(),
+    swift: (partial.swift ?? "").trim(),
+    bankName: (partial.bankName ?? "").trim(),
   };
 }
 
@@ -102,6 +107,12 @@ function upsertCustomerInDoc(doc: StoreDocument, draft: CustomerDraft): { id: st
     existing.email = customer.email;
     existing.phone = customer.phone;
     existing.note = customer.note || existing.note;
+    // Import rows often omit bank columns — keep stored values unless new ones arrive.
+    existing.bankAccount = customer.bankAccount || existing.bankAccount;
+    existing.bankCode = customer.bankCode || existing.bankCode;
+    existing.iban = customer.iban || existing.iban;
+    existing.swift = customer.swift || existing.swift;
+    existing.bankName = customer.bankName || existing.bankName;
     existing.updatedAt = now;
     return { id: existing.id, created: false };
   }
@@ -144,6 +155,11 @@ function upsertInvoiceInDoc(
       email: draft.customerEmail,
       phone: "",
       note: "",
+      bankAccount: "",
+      bankCode: "",
+      iban: "",
+      swift: "",
+      bankName: "",
     }).id;
   }
 

@@ -198,6 +198,11 @@ function mapInvoice(raw: Record<string, unknown>, filename: string, warnings: st
         email: customerParty.email,
         phone: customerParty.phone,
         note: "",
+        bankAccount: "",
+        bankCode: "",
+        iban: "",
+        swift: "",
+        bankName: "",
       }
     : null;
   return { invoice, customer, supplier: supplierFromParty(supplierParty, payment) };

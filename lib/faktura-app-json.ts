@@ -104,6 +104,12 @@ function mapCustomer(raw: Record<string, unknown>): CustomerDraft | null {
   const name = text(raw.name);
   if (!name) return null;
   const cityLine = splitCityLine(text(raw.city));
+  const payment = record(raw.payment);
+  const bank = bankFieldsFromPayment({
+    accountNumber: text(raw.bankAccount) || text(raw.accountNumber) || text(payment.accountNumber),
+    iban: text(raw.iban) || text(payment.iban),
+    swift: text(raw.swift) || text(payment.swift),
+  });
   return {
     externalId: null,
     source: "csv",
@@ -117,6 +123,11 @@ function mapCustomer(raw: Record<string, unknown>): CustomerDraft | null {
     email: text(raw.email),
     phone: text(raw.phone),
     note: "",
+    bankAccount: bank.bankAccount,
+    bankCode: bank.bankCode || text(raw.bankCode),
+    iban: bank.iban,
+    swift: bank.swift,
+    bankName: text(raw.bankName) || text(payment.bankName),
   };
 }
 

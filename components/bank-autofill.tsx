@@ -10,20 +10,33 @@ type Props = {
   bankCode: string;
   iban: string;
   swift: string;
+  /** When set (including ""), show editable bank name and persist via form field. */
+  bankName?: string;
+  /** Show QR hint (company settings). Off for customer directory. */
+  showQrHint?: boolean;
 };
 
-export function BankAutofillFields({ bankAccount: initialAccount, bankCode: initialCode, iban: initialIban, swift: initialSwift }: Props) {
+export function BankAutofillFields({
+  bankAccount: initialAccount,
+  bankCode: initialCode,
+  iban: initialIban,
+  swift: initialSwift,
+  bankName: initialBankName,
+  showQrHint = true,
+}: Props) {
+  const persistBankName = initialBankName !== undefined;
   const [bankAccount, setBankAccount] = useState(initialAccount);
   const [bankCode, setBankCode] = useState(initialCode);
   const [iban, setIban] = useState(initialIban);
   const [swift, setSwift] = useState(initialSwift);
-  const [bankName, setBankName] = useState("");
+  const [bankName, setBankName] = useState(initialBankName ?? "");
   const [hint, setHint] = useState("");
 
   useEffect(() => {
+    if (persistBankName && bankName) return;
     const bank = fillFromBankCode(bankCode);
     if (bank) setBankName(bank.bankName);
-  }, [bankCode]);
+  }, [bankCode, persistBankName, bankName]);
 
   function applyFromIban(raw: string) {
     setIban(raw);
@@ -91,10 +104,20 @@ export function BankAutofillFields({ bankAccount: initialAccount, bankCode: init
       <Field label="SWIFT">
         <Input name="swift" value={swift} onChange={(event) => setSwift(event.target.value)} />
       </Field>
-      {(bankName || hint || resolved) && (
+      {persistBankName ? (
+        <Field label="Název banky">
+          <Input
+            name="bankName"
+            value={bankName}
+            onChange={(event) => setBankName(event.target.value)}
+            placeholder="volitelné"
+          />
+        </Field>
+      ) : null}
+      {(bankName || hint || (showQrHint && resolved)) && (
         <p className="sm:col-span-2 text-xs text-muted-foreground">
-          {[bankName, hint].filter(Boolean).join(" · ")}
-          {resolved && !iban.replace(/\s/g, "") ? ` · QR použije ${resolved}` : ""}
+          {persistBankName ? hint : [bankName, hint].filter(Boolean).join(" · ")}
+          {showQrHint && resolved && !iban.replace(/\s/g, "") ? ` · QR použije ${resolved}` : ""}
         </p>
       )}
     </>

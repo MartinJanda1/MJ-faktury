@@ -183,6 +183,11 @@ test("repeated import updates the same invoice and customer", async () => {
         email: "fakturace@les.cz",
         phone: "",
         note: "",
+        bankAccount: "",
+        bankCode: "",
+        iban: "",
+        swift: "",
+        bankName: "",
       },
     ],
     [
