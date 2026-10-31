@@ -4,8 +4,13 @@ import { formatDate, formatMoney, formatQuantity } from "@/lib/money";
 import { getCompany, getInvoice } from "@/lib/queries";
 import { kindLabel } from "@/lib/status";
 
-export default async function PrintPage({ params }: PageProps<"/tisk/[id]">) {
+export default async function PrintPage({
+  params,
+  searchParams,
+}: PageProps<"/tisk/[id]">) {
   const { id } = await params;
+  const query = await searchParams;
+  const autoPdf = (Array.isArray(query.pdf) ? query.pdf[0] : query.pdf) === "1";
   const [invoice, company] = await Promise.all([getInvoice(id), getCompany()]);
   if (!invoice) {
     return (
@@ -24,7 +29,7 @@ export default async function PrintPage({ params }: PageProps<"/tisk/[id]">) {
         <Link href={`/faktury/${invoice.id}`} className="text-sm underline">
           Zpět na doklad
         </Link>
-        <PrintButton />
+        <PrintButton auto={autoPdf} />
       </div>
       <header className="flex items-start justify-between gap-6 border-b border-neutral-300 pb-4">
         <div>

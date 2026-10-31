@@ -7,11 +7,15 @@ import { todayPrague } from "./money";
 import {
   deleteCustomer,
   deleteInvoice,
+  getInvoiceRow,
+  listInvoiceNumbers,
   saveCompany,
   saveManualCustomer,
   setInvoicePayment,
+  setInvoiceStatus,
   upsertInvoice,
 } from "./persist";
+import { addDaysIso, suggestNextNumber } from "./status";
 import type { InvoiceKind, InvoiceStatus, ItemDraft } from "./types";
 
 function refresh() {
@@ -166,4 +170,72 @@ export async function markUnpaidAction(formData: FormData) {
   await setInvoicePayment(id, null);
   refresh();
   redirect(`/faktury/${id}`);
+}
+
+export async function cancelInvoiceAction(formData: FormData) {
+  await connection();
+  const id = String(formData.get("id") ?? "");
+  await setInvoiceStatus(id, "cancelled");
+  refresh();
+  redirect(`/faktury/${id}`);
+}
+
+export async function restoreInvoiceAction(formData: FormData) {
+  await connection();
+  const id = String(formData.get("id") ?? "");
+  await setInvoiceStatus(id, "issued");
+  refresh();
+  redirect(`/faktury/${id}`);
+}
+
+export async function duplicateInvoiceAction(formData: FormData) {
+  await connection();
+  const id = String(formData.get("id") ?? "");
+  const source = await getInvoiceRow(id);
+  if (!source) redirect("/faktury");
+  const today = todayPrague();
+  const numbers = await listInvoiceNumbers();
+  const result = await upsertInvoice(
+    {
+      externalId: null,
+      source: "manual",
+      kind: source.kind,
+      number: suggestNextNumber(numbers, today),
+      variableSymbol: "",
+      constantSymbol: source.constantSymbol,
+      specificSymbol: "",
+      customerExternalId: null,
+      customerName: source.customerName,
+      customerIco: source.customerIco,
+      customerDic: source.customerDic,
+      customerStreet: source.customerStreet,
+      customerCity: source.customerCity,
+      customerZip: source.customerZip,
+      customerCountry: source.customerCountry,
+      customerEmail: source.customerEmail,
+      issueDate: today,
+      dueDate: addDaysIso(today, 14),
+      taxDate: today,
+      paidDate: null,
+      currency: source.currency,
+      status: "issued",
+      description: source.description,
+      note: source.note,
+      items: source.items.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        unitPrice: item.unitPrice,
+        vatRate: item.vatRate,
+        totalNet: item.totalNet,
+        totalVat: item.totalVat,
+        totalGross: item.totalGross,
+      })),
+      supplier: null,
+    },
+    null,
+    source.customerId,
+  );
+  refresh();
+  redirect(`/faktury/${result.id}/upravit`);
 }

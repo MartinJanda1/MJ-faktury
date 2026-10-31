@@ -4,7 +4,14 @@ import { MissingRecord } from "@/components/missing-record";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
-import { deleteInvoiceAction, markPaidAction, markUnpaidAction } from "@/lib/actions";
+import {
+  cancelInvoiceAction,
+  deleteInvoiceAction,
+  duplicateInvoiceAction,
+  markPaidAction,
+  markUnpaidAction,
+  restoreInvoiceAction,
+} from "@/lib/actions";
 import { formatDate, formatMoney, formatQuantity } from "@/lib/money";
 import { getCompany, getInvoice } from "@/lib/queries";
 import { kindLabel, sourceLabel } from "@/lib/status";
@@ -31,6 +38,8 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
   const account = [company.bankAccount && company.bankCode ? `${company.bankAccount}/${company.bankCode}` : company.bankAccount, company.iban]
     .filter(Boolean)
     .join(" · ");
+  const isPaid = invoice.status === "paid";
+  const isCancelled = invoice.status === "cancelled";
 
   return (
     <div>
@@ -41,8 +50,8 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
         action={
           <>
             <StatusBadge status={invoice.status} dueDate={invoice.dueDate} paidDate={invoice.paidDate} />
-            <Link href={`/tisk/${invoice.id}`} className={buttonVariants({ variant: "outline" })}>
-              Tisk
+            <Link href={`/tisk/${invoice.id}?pdf=1`} className={buttonVariants({ variant: "outline" })}>
+              PDF / tisk
             </Link>
             <Link href={`/faktury/${invoice.id}/upravit`} className={buttonVariants({ variant: "outline" })}>
               Upravit
@@ -50,6 +59,51 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
           </>
         }
       />
+      <div className="mb-4 flex flex-wrap gap-2">
+        {!isPaid && !isCancelled ? (
+          <form action={markPaidAction}>
+            <input type="hidden" name="id" value={invoice.id} />
+            <button type="submit" className={buttonVariants()}>
+              Označit jako uhrazené
+            </button>
+          </form>
+        ) : null}
+        {isPaid ? (
+          <form action={markUnpaidAction}>
+            <input type="hidden" name="id" value={invoice.id} />
+            <button type="submit" className={buttonVariants({ variant: "outline" })}>
+              Zrušit úhradu
+            </button>
+          </form>
+        ) : null}
+        <form action={duplicateInvoiceAction}>
+          <input type="hidden" name="id" value={invoice.id} />
+          <button type="submit" className={buttonVariants({ variant: "outline" })}>
+            Kopírovat a vytvořit novou
+          </button>
+        </form>
+        {!isCancelled ? (
+          <form action={cancelInvoiceAction}>
+            <input type="hidden" name="id" value={invoice.id} />
+            <button type="submit" className={buttonVariants({ variant: "outline" })}>
+              Stornovat
+            </button>
+          </form>
+        ) : (
+          <form action={restoreInvoiceAction}>
+            <input type="hidden" name="id" value={invoice.id} />
+            <button type="submit" className={buttonVariants({ variant: "outline" })}>
+              Zrušit storno
+            </button>
+          </form>
+        )}
+        <ConfirmDelete
+          action={deleteInvoiceAction}
+          id={invoice.id}
+          title="Smazat doklad?"
+          description="Doklad zmizí z evidence. V iDokladu se nic nemění."
+        />
+      </div>
       <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
         <section className="rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-5">
           <div className="overflow-x-auto">
@@ -114,29 +168,6 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
             <Row label="Účet" value={account || "Doplňte v nastavení"} />
             <Row label="Původ" value={sourceLabel(invoice.source)} />
           </section>
-          <div className="flex flex-wrap gap-2">
-            {invoice.status === "paid" ? (
-              <form action={markUnpaidAction}>
-                <input type="hidden" name="id" value={invoice.id} />
-                <button type="submit" className={buttonVariants({ variant: "outline" })}>
-                  Označit jako neuhrazené
-                </button>
-              </form>
-            ) : (
-              <form action={markPaidAction}>
-                <input type="hidden" name="id" value={invoice.id} />
-                <button type="submit" className={buttonVariants()}>
-                  Označit jako uhrazené
-                </button>
-              </form>
-            )}
-            <ConfirmDelete
-              action={deleteInvoiceAction}
-              id={invoice.id}
-              title="Smazat doklad?"
-              description="Doklad zmizí z evidence. V iDokladu se nic nemění."
-            />
-          </div>
         </aside>
       </div>
     </div>

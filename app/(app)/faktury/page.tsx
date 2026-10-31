@@ -3,8 +3,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
-import { formatDate, formatMoney } from "@/lib/money";
-import { getInvoices } from "@/lib/queries";
+import { formatDate, formatMoney, todayPrague } from "@/lib/money";
+import { getInvoiceFilterMeta, getInvoices } from "@/lib/queries";
 import { kindLabel } from "@/lib/status";
 import { cn } from "cn";
 
@@ -15,7 +15,32 @@ const statuses = [
   ["unpaid", "K úhradě"],
   ["overdue", "Po splatnosti"],
   ["paid", "Uhrazené"],
+  ["partial", "Částečně"],
   ["draft", "Koncepty"],
+  ["cancelled", "Storno"],
+] as const;
+
+const kinds = [
+  ["all", "Všechny typy"],
+  ["issued", "Faktury"],
+  ["proforma", "Zálohy"],
+  ["credit_note", "Dobropisy"],
+] as const;
+
+const months = [
+  ["", "Celý rok"],
+  ["01", "Leden"],
+  ["02", "Únor"],
+  ["03", "Březen"],
+  ["04", "Duben"],
+  ["05", "Květen"],
+  ["06", "Červen"],
+  ["07", "Červenec"],
+  ["08", "Srpen"],
+  ["09", "Září"],
+  ["10", "Říjen"],
+  ["11", "Listopad"],
+  ["12", "Prosinec"],
 ] as const;
 
 export default async function InvoicesPage({ searchParams }: PageProps<"/faktury">) {
@@ -23,33 +48,82 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
   const query = text(params.q);
   const status = text(params.stav) || "all";
   const kind = text(params.druh) || "all";
-  const { invoices, total } = await getInvoices({ query, status, kind });
+  const year = text(params.rok);
+  const month = text(params.mesic);
+  const from = text(params.od);
+  const to = text(params.do);
+  const [{ invoices, total }, meta] = await Promise.all([
+    getInvoices({ query, status, kind, year, month, from, to }),
+    getInvoiceFilterMeta(),
+  ]);
+  const currentYear = todayPrague().slice(0, 4);
+  const years = meta.years.length ? meta.years : [currentYear];
+  const filter = { q: query, stav: status, druh: kind, rok: year, mesic: month, od: from, do: to };
 
   return (
     <div>
       <PageHeader
         eyebrow="Doklady"
         title="Faktury"
-        description="Vydané faktury, zálohy a dobropisy. Hledání bere číslo, odběratele, IČO i variabilní symbol."
+        description="Filtrování podle období, stavu a čísla. Hledání bere i odběratele, IČO a variabilní symbol."
         action={
           <Link href="/faktury/nova" className={buttonVariants()}>
             Nová faktura
           </Link>
         }
       />
-      <form className="mb-4 flex flex-col gap-2 sm:flex-row">
-        <Input name="q" defaultValue={query} placeholder="Hledat doklad" className="sm:max-w-sm" />
+
+      <form className="mb-4 grid gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:grid-cols-2 lg:grid-cols-6">
+        <label className="grid gap-1 text-sm lg:col-span-2">
+          <span className="text-muted-foreground">Hledat</span>
+          <Input name="q" defaultValue={query} placeholder="Číslo, odběratel, VS…" />
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span className="text-muted-foreground">Rok</span>
+          <select name="rok" defaultValue={year} className="h-9 rounded-lg border border-input bg-background px-3 text-sm">
+            <option value="">Všechny roky</option>
+            {years.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span className="text-muted-foreground">Měsíc</span>
+          <select name="mesic" defaultValue={month} className="h-9 rounded-lg border border-input bg-background px-3 text-sm">
+            {months.map(([value, label]) => (
+              <option key={label} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span className="text-muted-foreground">Od</span>
+          <Input type="date" name="od" defaultValue={from} />
+        </label>
+        <label className="grid gap-1 text-sm">
+          <span className="text-muted-foreground">Do</span>
+          <Input type="date" name="do" defaultValue={to} />
+        </label>
         <input type="hidden" name="stav" value={status} />
         <input type="hidden" name="druh" value={kind} />
-        <button type="submit" className={buttonVariants({ variant: "outline" })}>
-          Hledat
-        </button>
+        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-6">
+          <button type="submit" className={buttonVariants()}>
+            Filtrovat
+          </button>
+          <Link href="/faktury" className={buttonVariants({ variant: "outline" })}>
+            Zrušit filtr
+          </Link>
+        </div>
       </form>
-      <div className="mb-4 flex flex-wrap gap-2">
+
+      <div className="mb-3 flex flex-wrap gap-2">
         {statuses.map(([value, label]) => (
           <Link
             key={value}
-            href={href({ q: query, stav: value, druh: kind })}
+            href={href({ ...filter, stav: value })}
             className={cn(
               "rounded-full px-3 py-1 text-sm",
               status === value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
@@ -59,6 +133,21 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
           </Link>
         ))}
       </div>
+      <div className="mb-4 flex flex-wrap gap-2">
+        {kinds.map(([value, label]) => (
+          <Link
+            key={value}
+            href={href({ ...filter, druh: value })}
+            className={cn(
+              "rounded-full px-3 py-1 text-sm",
+              kind === value ? "bg-foreground text-background" : "bg-muted/70 text-muted-foreground",
+            )}
+          >
+            {label}
+          </Link>
+        ))}
+      </div>
+
       {invoices.length === 0 ? (
         <div className="rounded-xl bg-card px-5 py-10 ring-1 ring-foreground/10">
           <h2 className="text-xl font-medium">Žádný doklad neodpovídá</h2>
@@ -77,7 +166,11 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
             <span className="text-right">Celkem</span>
           </div>
           {invoices.map((invoice) => (
-            <Link key={invoice.id} href={`/faktury/${invoice.id}`} className="grid gap-1 border-b border-border px-4 py-3 last:border-b-0 md:grid-cols-[8rem_1fr_8rem_8rem_7rem] md:items-center md:gap-3">
+            <Link
+              key={invoice.id}
+              href={`/faktury/${invoice.id}`}
+              className="grid gap-1 border-b border-border px-4 py-3 last:border-b-0 md:grid-cols-[8rem_1fr_8rem_8rem_7rem] md:items-center md:gap-3"
+            >
               <span className="font-medium">{invoice.number}</span>
               <span className="truncate text-sm">
                 {invoice.customerName || "Bez odběratele"}
@@ -90,9 +183,11 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
           ))}
         </div>
       )}
-      {total > invoices.length ? (
-        <p className="mt-3 text-sm text-muted-foreground">Zobrazeno {invoices.length} z {total}. Zúžte hledání.</p>
-      ) : null}
+      <p className="mt-3 text-sm text-muted-foreground">
+        {total > invoices.length
+          ? `Zobrazeno ${invoices.length} z ${total}. Zúžte hledání.`
+          : `${total} ${total === 1 ? "doklad" : total < 5 ? "doklady" : "dokladů"}`}
+      </p>
     </div>
   );
 }
@@ -101,11 +196,23 @@ function text(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
-function href(params: { q: string; stav: string; druh: string }) {
+function href(params: {
+  q: string;
+  stav: string;
+  druh: string;
+  rok: string;
+  mesic: string;
+  od: string;
+  do: string;
+}) {
   const search = new URLSearchParams();
   if (params.q) search.set("q", params.q);
   if (params.stav && params.stav !== "all") search.set("stav", params.stav);
   if (params.druh && params.druh !== "all") search.set("druh", params.druh);
+  if (params.rok) search.set("rok", params.rok);
+  if (params.mesic) search.set("mesic", params.mesic);
+  if (params.od) search.set("od", params.od);
+  if (params.do) search.set("do", params.do);
   const query = search.toString();
   return query ? `/faktury?${query}` : "/faktury";
 }

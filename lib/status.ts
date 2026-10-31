@@ -58,6 +58,17 @@ export function sourceLabel(source: string): string {
 
 export function suggestNextNumber(numbers: string[], today = todayPrague()): string {
   const year = today.slice(0, 4);
+  const vfPattern = /^VF\s+(\d+)\/(\d{4})$/i;
+  const hasVf = numbers.some((number) => vfPattern.test(number));
+  if (hasVf) {
+    const seqs: number[] = [];
+    for (const number of numbers) {
+      const match = number.match(vfPattern);
+      if (match && match[2] === year) seqs.push(Number(match[1]));
+    }
+    const next = (seqs.length ? Math.max(...seqs) : 0) + 1;
+    return `VF ${String(next).padStart(2, "0")}/${year}`;
+  }
   let best = 0;
   let width = 4;
   let prefix = year;
@@ -73,4 +84,12 @@ export function suggestNextNumber(numbers: string[], today = todayPrague()): str
   }
   if (best === 0) return `${year}0001`;
   return `${prefix}${String(best + 1).padStart(width, "0")}`;
+}
+
+export function addDaysIso(iso: string, days: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const [year, month, day] = iso.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }

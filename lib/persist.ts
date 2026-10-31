@@ -8,6 +8,7 @@ import type {
   Invoice,
   InvoiceDraft,
   InvoiceItem,
+  InvoiceStatus,
   ItemDraft,
   SupplierDraft,
 } from "./types";
@@ -340,6 +341,22 @@ export async function setInvoicePayment(id: string, paidDate: string | null) {
   });
 }
 
+export async function setInvoiceStatus(id: string, status: InvoiceStatus, paidDate?: string | null) {
+  await updateStore((doc) => {
+    const invoice = doc.invoices.find((row) => row.id === id);
+    if (!invoice) return;
+    invoice.status = status;
+    if (status === "paid") {
+      invoice.paidDate = paidDate || invoice.paidDate || new Date().toISOString().slice(0, 10);
+    } else if (status === "issued" || status === "cancelled" || status === "draft") {
+      invoice.paidDate = null;
+    } else if (paidDate !== undefined) {
+      invoice.paidDate = paidDate;
+    }
+    invoice.updatedAt = new Date().toISOString();
+  });
+}
+
 export type CompanySecrets = {
   clientId: string;
   clientSecret: string;
@@ -396,11 +413,15 @@ export async function listInvoiceRows(filter: {
   status?: string;
   kind?: string;
   customerId?: string;
+  from?: string;
+  to?: string;
 }): Promise<Invoice[]> {
   const doc = await loadStore();
   let rows = [...doc.invoices];
   if (filter.kind && filter.kind !== "all") rows = rows.filter((invoice) => invoice.kind === filter.kind);
   if (filter.customerId) rows = rows.filter((invoice) => invoice.customerId === filter.customerId);
+  if (filter.from) rows = rows.filter((invoice) => invoice.issueDate >= filter.from!);
+  if (filter.to) rows = rows.filter((invoice) => invoice.issueDate <= filter.to!);
   if (filter.query?.trim()) {
     const needle = filter.query.trim().toLowerCase();
     rows = rows.filter((invoice) =>
@@ -412,6 +433,15 @@ export async function listInvoiceRows(filter: {
   }
   rows.sort((a, b) => b.issueDate.localeCompare(a.issueDate) || b.number.localeCompare(a.number));
   return rows.map((invoice) => ({ ...invoice, items: [] }));
+}
+
+export async function listInvoiceYears(): Promise<string[]> {
+  const doc = await loadStore();
+  const years = new Set<string>();
+  for (const invoice of doc.invoices) {
+    if (/^\d{4}/.test(invoice.issueDate)) years.add(invoice.issueDate.slice(0, 4));
+  }
+  return [...years].sort((a, b) => b.localeCompare(a));
 }
 
 export async function listInvoiceNumbers(): Promise<string[]> {

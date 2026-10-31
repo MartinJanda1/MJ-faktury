@@ -27,6 +27,7 @@ test("overdue status uses the due date", () => {
   assert.equal(displayStatus({ status: "issued", dueDate: "2020-01-01", paidDate: null }, "2026-10-31"), "overdue");
   assert.equal(displayStatus({ status: "paid", dueDate: "2020-01-01", paidDate: "2020-01-02" }, "2026-10-31"), "paid");
   assert.equal(suggestNextNumber(["20240012", "20240007"]), "20240013");
+  assert.equal(suggestNextNumber(["VF 08/2026", "VF 09/2026"], "2026-10-31"), "VF 10/2026");
 });
 
 test("iDoklad invoice keeps API totals and links the contact", () => {
