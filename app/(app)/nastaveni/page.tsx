@@ -19,7 +19,7 @@ export default async function SettingsPage() {
       <PageHeader
         eyebrow="Firma"
         title="Nastavení"
-        description="Tyto údaje se tisknou jako dodavatel. Když je firma prázdná, první import je doplní z iDokladu nebo z ISDOC."
+        description="Tyto údaje se tisknou jako dodavatel. IČO firmy zároveň odemyká celou evidenci. Když je firma prázdná, první import je doplní z iDokladu nebo z ISDOC."
       />
       {hasQrBank ? null : (
         <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">

@@ -1,3 +1,5 @@
+import { normalizeIco } from "./ico";
+
 export type AresParty = {
   ico: string;
   name: string;
@@ -10,13 +12,9 @@ export type AresParty = {
   vatNote: string;
 };
 
-const ARES_BASE = "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty";
+export { normalizeIco };
 
-export function normalizeIco(value: string | null | undefined): string {
-  const ico = String(value || "").replace(/\D/g, "");
-  if (ico.length < 8) return "";
-  return ico.slice(0, 8);
-}
+const ARES_BASE = "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty";
 
 function formatPsc(psc: unknown): string {
   const digits = String(psc || "").replace(/\D/g, "");

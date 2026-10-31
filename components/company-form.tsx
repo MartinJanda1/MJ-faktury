@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { useAccess } from "@/components/access-gate";
 import { AresLookup } from "@/components/ares-lookup";
 import { BankAutofillFields } from "@/components/bank-autofill";
 import { Button } from "@/components/ui/button";
@@ -9,10 +10,15 @@ import { saveCompanyAction } from "@/lib/actions";
 import type { Company } from "@/lib/types";
 
 export function CompanyForm({ company }: { company: Company }) {
+  const { ico: unlockedIco, logout, syncIco } = useAccess();
   const [state, action, pending] = useActionState(saveCompanyAction, { error: "", saved: false });
   const [name, setName] = useState(company.name);
-  const [ico, setIco] = useState(company.ico);
+  const [ico, setIco] = useState(company.ico || unlockedIco || "");
   const [dic, setDic] = useState(company.dic);
+
+  useEffect(() => {
+    if (state.saved) syncIco(ico);
+  }, [state.saved, ico, syncIco]);
   const [street, setStreet] = useState(company.street);
   const [city, setCity] = useState(company.city);
   const [zip, setZip] = useState(company.zip);
@@ -144,6 +150,23 @@ export function CompanyForm({ company }: { company: Company }) {
             <input type="checkbox" name="clearSecret" className="size-4 accent-[oklch(0.38_0.07_155)]" />
             Smazat uložené API klíče
           </label>
+        ) : null}
+      </section>
+      <section className="grid gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-5">
+        <h2 className="font-heading text-lg">Přístup přes IČO</h2>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Evidence se odemyká IČO dodavatele uloženým výše. Stejné IČO je klíčem k této instalaci — bez hesla,
+          jen jako jednoduchá pojistka.
+        </p>
+        {unlockedIco ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm">
+              Aktuálně odemčeno: <span className="font-medium">IČO {unlockedIco}</span>
+            </p>
+            <Button type="button" variant="outline" size="sm" onClick={logout}>
+              Odhlásit / změnit IČO
+            </Button>
+          </div>
         ) : null}
       </section>
       <div className="flex justify-end">
