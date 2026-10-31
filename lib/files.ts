@@ -98,7 +98,7 @@ export async function importFiles(files: { name: string; buffer: Buffer }[]): Pr
     warnings.push(...imported.warnings);
     if (!supplier && imported.supplier?.name) supplier = imported.supplier;
   }
-  const counts = applyImport(customers, invoices, supplier);
+  const counts = await applyImport(customers, invoices, supplier);
   counts.warnings.push(...warnings);
   return counts;
 }

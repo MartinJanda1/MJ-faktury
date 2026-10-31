@@ -39,7 +39,7 @@ export async function getInvoice(id: string) {
 
 export async function getInvoices(filter: { query?: string; status?: string; kind?: string; customerId?: string }) {
   await live();
-  const rows = listInvoiceRows(filter);
+  const rows = await listInvoiceRows(filter);
   const status = filter.status || "all";
   const filtered = rows.filter((invoice) => matchesStatus(invoice, status));
   return {
@@ -63,7 +63,7 @@ export async function getNextNumber() {
 
 export async function getDashboard() {
   await live();
-  const { invoices, customerCount } = dashboardRows();
+  const { invoices, customerCount } = await dashboardRows();
   const today = todayPrague();
   const month = today.slice(0, 7);
   const recent = [...invoices].sort((a, b) => b.issueDate.localeCompare(a.issueDate) || b.number.localeCompare(a.number)).slice(0, 6);

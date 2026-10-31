@@ -11,7 +11,8 @@ import { displayStatus, suggestNextNumber } from "../lib/status.ts";
 import { importRows, parseCsv } from "../lib/tabular.ts";
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "faktura-"));
-process.env.FAKTURA_DB_PATH = path.join(dir, "test.db");
+process.env.FAKTURA_DB_PATH = path.join(dir, "test.json");
+delete process.env.BLOB_READ_WRITE_TOKEN;
 
 test("money helpers read Czech amounts and dates", () => {
   assert.equal(parseAmount("1 234,50 Kč"), 1234.5);
@@ -144,8 +145,8 @@ test("ISDOC keeps line items and the customer", () => {
 });
 
 test("repeated import updates the same invoice and customer", async () => {
-  const { applyImport, getInvoiceRow, listCustomerRows } = await import("../lib/persist.ts");
-  const first = applyImport(
+  const { applyImport, getInvoiceRow, listCustomerRows, listInvoiceRows } = await import("../lib/persist.ts");
+  const first = await applyImport(
     [
       {
         externalId: "idoklad:contact:55",
@@ -196,7 +197,7 @@ test("repeated import updates the same invoice and customer", async () => {
   );
   assert.equal(first.invoicesCreated, 1);
   assert.equal(first.customersCreated, 1);
-  const second = applyImport(
+  const second = await applyImport(
     [],
     [
       {
@@ -232,18 +233,13 @@ test("repeated import updates the same invoice and customer", async () => {
   );
   assert.equal(second.invoicesUpdated, 1);
   assert.equal(second.invoicesCreated, 0);
-  const customers = listCustomerRows("");
+  const customers = await listCustomerRows("");
   assert.equal(customers.length, 1);
-  const invoice = getInvoiceRow(customers[0] ? (await findInvoice()) : "");
+  const listed = await listInvoiceRows({ query: "20240015" });
+  const invoice = await getInvoiceRow(listed[0].id);
   assert.equal(invoice?.status, "paid");
   assert.equal(invoice?.customerId, customers[0].id);
   assert.equal(invoice?.items.length, 1);
-
-  async function findInvoice() {
-    const { getDb } = await import("../lib/db.ts");
-    const row = getDb().prepare(`SELECT id FROM invoices WHERE number = ?`).get("20240015") as { id: string };
-    return row.id;
-  }
 });
 
 test("xlsx contact sheet is recognized", async () => {

@@ -22,7 +22,7 @@ export async function saveCompanyAction(_previous: { error: string; saved: boole
   await connection();
   const clearSecret = formData.get("clearSecret") === "on";
   const secret = String(formData.get("clientSecret") ?? "");
-  saveCompany({
+  await saveCompany({
     name: String(formData.get("name") ?? ""),
     ico: String(formData.get("ico") ?? ""),
     dic: String(formData.get("dic") ?? ""),
@@ -51,7 +51,7 @@ export async function saveCustomerAction(_previous: { error: string }, formData:
   const existing = String(formData.get("id") ?? "") || null;
   let savedId = "";
   try {
-    savedId = saveManualCustomer(existing, {
+    savedId = await saveManualCustomer(existing, {
       externalId: null,
       source: "manual",
       name,
@@ -74,7 +74,7 @@ export async function saveCustomerAction(_previous: { error: string }, formData:
 
 export async function deleteCustomerAction(formData: FormData) {
   await connection();
-  deleteCustomer(String(formData.get("id") ?? ""));
+  await deleteCustomer(String(formData.get("id") ?? ""));
   refresh();
   redirect("/odberatele");
 }
@@ -106,34 +106,38 @@ export async function saveInvoiceAction(_previous: { error: string }, formData: 
   const invoiceId = String(formData.get("id") ?? "") || null;
   let result: { id: string };
   try {
-    result = upsertInvoice({
-      externalId: null,
-      source: "manual",
-      kind: safeKind,
-      number,
-      variableSymbol: String(formData.get("variableSymbol") ?? ""),
-      constantSymbol: String(formData.get("constantSymbol") ?? ""),
-      specificSymbol: String(formData.get("specificSymbol") ?? ""),
-      customerExternalId: customerId ? null : null,
-      customerName,
-      customerIco: String(formData.get("customerIco") ?? ""),
-      customerDic: String(formData.get("customerDic") ?? ""),
-      customerStreet: String(formData.get("customerStreet") ?? ""),
-      customerCity: String(formData.get("customerCity") ?? ""),
-      customerZip: String(formData.get("customerZip") ?? ""),
-      customerCountry: String(formData.get("customerCountry") ?? ""),
-      customerEmail: String(formData.get("customerEmail") ?? ""),
-      issueDate,
-      dueDate: String(formData.get("dueDate") ?? ""),
-      taxDate: String(formData.get("taxDate") ?? "") || issueDate,
-      paidDate: safeStatus === "paid" ? paidDate : safeStatus === "partial" ? paidDateRaw || null : null,
-      currency: String(formData.get("currency") ?? "CZK").toUpperCase() || "CZK",
-      status: safeStatus,
-      description: String(formData.get("description") ?? ""),
-      note: String(formData.get("note") ?? ""),
-      items,
-      supplier: null,
-    }, invoiceId, customerId || null);
+    result = await upsertInvoice(
+      {
+        externalId: null,
+        source: "manual",
+        kind: safeKind,
+        number,
+        variableSymbol: String(formData.get("variableSymbol") ?? ""),
+        constantSymbol: String(formData.get("constantSymbol") ?? ""),
+        specificSymbol: String(formData.get("specificSymbol") ?? ""),
+        customerExternalId: null,
+        customerName,
+        customerIco: String(formData.get("customerIco") ?? ""),
+        customerDic: String(formData.get("customerDic") ?? ""),
+        customerStreet: String(formData.get("customerStreet") ?? ""),
+        customerCity: String(formData.get("customerCity") ?? ""),
+        customerZip: String(formData.get("customerZip") ?? ""),
+        customerCountry: String(formData.get("customerCountry") ?? ""),
+        customerEmail: String(formData.get("customerEmail") ?? ""),
+        issueDate,
+        dueDate: String(formData.get("dueDate") ?? ""),
+        taxDate: String(formData.get("taxDate") ?? "") || issueDate,
+        paidDate: safeStatus === "paid" ? paidDate : safeStatus === "partial" ? paidDateRaw || null : null,
+        currency: String(formData.get("currency") ?? "CZK").toUpperCase() || "CZK",
+        status: safeStatus,
+        description: String(formData.get("description") ?? ""),
+        note: String(formData.get("note") ?? ""),
+        items,
+        supplier: null,
+      },
+      invoiceId,
+      customerId || null,
+    );
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Doklad se nepodařilo uložit." };
   }
@@ -143,7 +147,7 @@ export async function saveInvoiceAction(_previous: { error: string }, formData: 
 
 export async function deleteInvoiceAction(formData: FormData) {
   await connection();
-  deleteInvoice(String(formData.get("id") ?? ""));
+  await deleteInvoice(String(formData.get("id") ?? ""));
   refresh();
   redirect("/faktury");
 }
@@ -151,7 +155,7 @@ export async function deleteInvoiceAction(formData: FormData) {
 export async function markPaidAction(formData: FormData) {
   await connection();
   const id = String(formData.get("id") ?? "");
-  setInvoicePayment(id, todayPrague());
+  await setInvoicePayment(id, todayPrague());
   refresh();
   redirect(`/faktury/${id}`);
 }
@@ -159,7 +163,7 @@ export async function markPaidAction(formData: FormData) {
 export async function markUnpaidAction(formData: FormData) {
   await connection();
   const id = String(formData.get("id") ?? "");
-  setInvoicePayment(id, null);
+  await setInvoicePayment(id, null);
   refresh();
   redirect(`/faktury/${id}`);
 }

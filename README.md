@@ -23,7 +23,7 @@ npm test
 npm run lint
 ```
 
-Evidence nemá vlastní přihlášení. Je myšlená pro počítač, ke kterému máte přístup jen vy. Databáze je soubor `data/faktura.db` a do gitu se neukládá.
+Evidence nemá vlastní přihlášení. Lokálně ukládá data do `data/faktura.json`. Na Vercelu používá Vercel Blob.
 
 ## Co umí
 

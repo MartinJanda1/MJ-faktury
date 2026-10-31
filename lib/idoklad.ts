@@ -152,7 +152,7 @@ export async function importFromIdoklad(options: {
   signal?: AbortSignal;
   onProgress?: (event: ImportProgress) => void;
 }): Promise<ImportCounts> {
-  const stored = readCompanySecrets();
+  const stored = await readCompanySecrets();
   const clientId = options.clientId?.trim() || stored.clientId;
   const clientSecret = options.clientSecret?.trim() || stored.clientSecret;
   if (!clientId || !clientSecret) {
@@ -162,8 +162,8 @@ export async function importFromIdoklad(options: {
   log("Ověřuji klíče u iDokladu.");
   const token = await idokladToken(clientId, clientSecret);
   if (options.saveCredentials !== false) {
-    const company = readCompanyPublic();
-    saveCompany({ ...company, clientId, clientSecret, clearSecret: false });
+    const company = await readCompanyPublic();
+    await saveCompany({ ...company, clientId, clientSecret, clearSecret: false });
   }
 
   log("Stahuji adresář.");
@@ -230,7 +230,7 @@ export async function importFromIdoklad(options: {
   }
 
   log("Ukládám do evidence.");
-  const counts = applyImport(customers, invoices, supplier);
+  const counts = await applyImport(customers, invoices, supplier);
   counts.warnings.push(...warnings);
   return counts;
 }

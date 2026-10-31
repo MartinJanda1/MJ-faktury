@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { getDb } from "./db";
 import { lineTotals, roundMoney } from "./money";
+import { loadStore, updateStore, type StoreDocument } from "./store";
 import type {
   Customer,
   CustomerDraft,
@@ -11,143 +11,6 @@ import type {
   ItemDraft,
   SupplierDraft,
 } from "./types";
-
-type CustomerRow = {
-  id: string;
-  external_id: string | null;
-  source: Customer["source"];
-  name: string;
-  ico: string;
-  dic: string;
-  street: string;
-  city: string;
-  zip: string;
-  country: string;
-  email: string;
-  phone: string;
-  note: string;
-  created_at: string;
-  updated_at: string;
-};
-
-type InvoiceRow = {
-  id: string;
-  external_id: string | null;
-  source: Invoice["source"];
-  kind: Invoice["kind"];
-  number: string;
-  variable_symbol: string;
-  constant_symbol: string;
-  specific_symbol: string;
-  customer_id: string | null;
-  customer_name: string;
-  customer_ico: string;
-  customer_dic: string;
-  customer_street: string;
-  customer_city: string;
-  customer_zip: string;
-  customer_country: string;
-  customer_email: string;
-  issue_date: string;
-  due_date: string;
-  tax_date: string;
-  paid_date: string | null;
-  currency: string;
-  status: Invoice["status"];
-  description: string;
-  note: string;
-  total_net: number;
-  total_vat: number;
-  total_gross: number;
-  created_at: string;
-  updated_at: string;
-};
-
-type ItemRow = {
-  id: string;
-  invoice_id: string;
-  position: number;
-  name: string;
-  quantity: number;
-  unit: string;
-  unit_price: number;
-  vat_rate: number;
-  total_net: number;
-  total_vat: number;
-  total_gross: number;
-};
-
-export function mapCustomer(row: CustomerRow): Customer {
-  return {
-    id: row.id,
-    externalId: row.external_id,
-    source: row.source,
-    name: row.name,
-    ico: row.ico,
-    dic: row.dic,
-    street: row.street,
-    city: row.city,
-    zip: row.zip,
-    country: row.country,
-    email: row.email,
-    phone: row.phone,
-    note: row.note,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-export function mapInvoice(row: InvoiceRow, items: InvoiceItem[] = []): Invoice {
-  return {
-    id: row.id,
-    externalId: row.external_id,
-    source: row.source,
-    kind: row.kind,
-    number: row.number,
-    variableSymbol: row.variable_symbol,
-    constantSymbol: row.constant_symbol,
-    specificSymbol: row.specific_symbol,
-    customerId: row.customer_id,
-    customerName: row.customer_name,
-    customerIco: row.customer_ico,
-    customerDic: row.customer_dic,
-    customerStreet: row.customer_street,
-    customerCity: row.customer_city,
-    customerZip: row.customer_zip,
-    customerCountry: row.customer_country,
-    customerEmail: row.customer_email,
-    issueDate: row.issue_date,
-    dueDate: row.due_date,
-    taxDate: row.tax_date,
-    paidDate: row.paid_date,
-    currency: row.currency,
-    status: row.status,
-    description: row.description,
-    note: row.note,
-    totalNet: row.total_net,
-    totalVat: row.total_vat,
-    totalGross: row.total_gross,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    items,
-  };
-}
-
-function mapItem(row: ItemRow): InvoiceItem {
-  return {
-    id: row.id,
-    invoiceId: row.invoice_id,
-    position: row.position,
-    name: row.name,
-    quantity: row.quantity,
-    unit: row.unit,
-    unitPrice: row.unit_price,
-    vatRate: row.vat_rate,
-    totalNet: row.total_net,
-    totalVat: row.total_vat,
-    totalGross: row.total_gross,
-  };
-}
 
 function blankCustomer(partial: Partial<CustomerDraft> & Pick<CustomerDraft, "name" | "source">): CustomerDraft {
   return {
@@ -166,87 +29,23 @@ function blankCustomer(partial: Partial<CustomerDraft> & Pick<CustomerDraft, "na
   };
 }
 
-export function upsertCustomer(draft: CustomerDraft): { id: string; created: boolean } {
-  const db = getDb();
-  const customer = blankCustomer(draft);
-  if (!customer.name) throw new Error("Odběratel nemá název.");
-  const now = new Date().toISOString();
-
-  let existing: { id: string; note: string } | undefined;
-  if (customer.externalId) {
-    existing = db.prepare(`SELECT id, note FROM customers WHERE external_id = ?`).get(customer.externalId) as
-      | { id: string; note: string }
-      | undefined;
+function findCustomer(doc: StoreDocument, draft: CustomerDraft): Customer | undefined {
+  if (draft.externalId) {
+    const byExternal = doc.customers.find((customer) => customer.externalId === draft.externalId);
+    if (byExternal) return byExternal;
   }
-  if (!existing && customer.ico) {
-    existing = db.prepare(`SELECT id, note FROM customers WHERE ico = ? ORDER BY updated_at DESC`).get(customer.ico) as
-      | { id: string; note: string }
-      | undefined;
+  if (draft.ico) {
+    const byIco = doc.customers.find((customer) => customer.ico === draft.ico);
+    if (byIco) return byIco;
   }
-  if (!existing) {
-    existing = db
-      .prepare(`SELECT id, note FROM customers WHERE lower(name) = lower(?) ORDER BY updated_at DESC`)
-      .get(customer.name) as { id: string; note: string } | undefined;
-  }
-
-  if (existing) {
-    db.prepare(
-      `UPDATE customers SET
-        external_id = COALESCE(?, external_id),
-        source = ?,
-        name = ?, ico = ?, dic = ?, street = ?, city = ?, zip = ?, country = ?,
-        email = ?, phone = ?, note = ?, updated_at = ?
-      WHERE id = ?`,
-    ).run(
-      customer.externalId,
-      customer.source,
-      customer.name,
-      customer.ico,
-      customer.dic,
-      customer.street,
-      customer.city,
-      customer.zip,
-      customer.country,
-      customer.email,
-      customer.phone,
-      customer.note || existing.note,
-      now,
-      existing.id,
-    );
-    return { id: existing.id, created: false };
-  }
-
-  const id = randomUUID();
-  db.prepare(
-    `INSERT INTO customers (
-      id, external_id, source, name, ico, dic, street, city, zip, country, email, phone, note, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
-    id,
-    customer.externalId,
-    customer.source,
-    customer.name,
-    customer.ico,
-    customer.dic,
-    customer.street,
-    customer.city,
-    customer.zip,
-    customer.country,
-    customer.email,
-    customer.phone,
-    customer.note,
-    now,
-    now,
-  );
-  return { id, created: true };
+  return doc.customers.find((customer) => customer.name.toLowerCase() === draft.name.toLowerCase());
 }
 
 function resolvedItems(items: ItemDraft[]) {
   return items.map((item, index) => {
     const quantity = Number(item.quantity) || 0;
     const vatRate = Number(item.vatRate) || 0;
-    const hasImportedTotals =
-      item.totalNet != null && item.totalVat != null && item.totalGross != null;
+    const hasImportedTotals = item.totalNet != null && item.totalVat != null && item.totalGross != null;
     const computed = lineTotals(quantity, Number(item.unitPrice) || 0, vatRate);
     const totalNet = hasImportedTotals ? roundMoney(item.totalNet ?? 0) : computed.totalNet;
     const totalVat = hasImportedTotals ? roundMoney(item.totalVat ?? 0) : computed.totalVat;
@@ -267,78 +66,70 @@ function resolvedItems(items: ItemDraft[]) {
   });
 }
 
-function findCustomerId(draft: InvoiceDraft): string | null {
-  const db = getDb();
+function findCustomerId(doc: StoreDocument, draft: InvoiceDraft): string | null {
   if (draft.customerExternalId) {
-    const row = db.prepare(`SELECT id FROM customers WHERE external_id = ?`).get(draft.customerExternalId) as
-      | { id: string }
-      | undefined;
-    if (row) return row.id;
+    const match = doc.customers.find((customer) => customer.externalId === draft.customerExternalId);
+    if (match) return match.id;
   }
   if (draft.customerIco) {
-    const row = db.prepare(`SELECT id FROM customers WHERE ico = ? ORDER BY updated_at DESC`).get(draft.customerIco) as
-      | { id: string }
-      | undefined;
-    if (row) return row.id;
+    const match = doc.customers.find((customer) => customer.ico === draft.customerIco);
+    if (match) return match.id;
   }
   if (draft.customerName) {
-    const row = db
-      .prepare(`SELECT id FROM customers WHERE lower(name) = lower(?) ORDER BY updated_at DESC`)
-      .get(draft.customerName) as { id: string } | undefined;
-    if (row) return row.id;
+    const match = doc.customers.find((customer) => customer.name.toLowerCase() === draft.customerName.toLowerCase());
+    if (match) return match.id;
   }
   return null;
 }
 
-export function saveManualCustomer(id: string | null, draft: CustomerDraft): string {
-  const customer = blankCustomer({ ...draft, source: "manual", externalId: null });
+function upsertCustomerInDoc(doc: StoreDocument, draft: CustomerDraft): { id: string; created: boolean } {
+  const customer = blankCustomer(draft);
   if (!customer.name) throw new Error("Odběratel nemá název.");
-  const db = getDb();
   const now = new Date().toISOString();
-  if (id) {
-    const existing = db.prepare(`SELECT id FROM customers WHERE id = ?`).get(id) as { id: string } | undefined;
-    if (!existing) throw new Error("Odběratel už v evidenci není.");
-    db.prepare(
-      `UPDATE customers SET
-        name = ?, ico = ?, dic = ?, street = ?, city = ?, zip = ?, country = ?,
-        email = ?, phone = ?, note = ?, updated_at = ?
-      WHERE id = ?`,
-    ).run(
-      customer.name,
-      customer.ico,
-      customer.dic,
-      customer.street,
-      customer.city,
-      customer.zip,
-      customer.country,
-      customer.email,
-      customer.phone,
-      customer.note,
-      now,
-      id,
-    );
-    return id;
+  const existing = findCustomer(doc, customer);
+  if (existing) {
+    existing.externalId = customer.externalId ?? existing.externalId;
+    existing.source = customer.source;
+    existing.name = customer.name;
+    existing.ico = customer.ico;
+    existing.dic = customer.dic;
+    existing.street = customer.street;
+    existing.city = customer.city;
+    existing.zip = customer.zip;
+    existing.country = customer.country;
+    existing.email = customer.email;
+    existing.phone = customer.phone;
+    existing.note = customer.note || existing.note;
+    existing.updatedAt = now;
+    return { id: existing.id, created: false };
   }
-  return upsertCustomer(customer).id;
+  const id = randomUUID();
+  doc.customers.push({
+    id,
+    ...customer,
+    createdAt: now,
+    updatedAt: now,
+  });
+  return { id, created: true };
 }
 
-export function upsertInvoice(
+function upsertInvoiceInDoc(
+  doc: StoreDocument,
   draft: InvoiceDraft,
   preferredId?: string | null,
   linkedCustomerId?: string | null,
 ): { id: string; created: boolean } {
-  const db = getDb();
   const number = draft.number.trim();
   if (!number) throw new Error("Doklad nemá číslo.");
-  const items = resolvedItems(draft.items.length > 0 ? draft.items : []);
+  const items = resolvedItems(draft.items);
   if (items.length === 0) throw new Error(`Doklad ${number} nemá žádnou položku.`);
   const totalNet = roundMoney(items.reduce((sum, item) => sum + item.totalNet, 0));
   const totalVat = roundMoney(items.reduce((sum, item) => sum + item.totalVat, 0));
   const totalGross = roundMoney(items.reduce((sum, item) => sum + item.totalGross, 0));
   const now = new Date().toISOString();
-  let customerId = linkedCustomerId || findCustomerId(draft);
+  let customerId = linkedCustomerId || findCustomerId(doc, draft);
   if (!customerId && draft.customerName.trim()) {
-    customerId = upsertCustomer({
+    customerId = upsertCustomerInDoc(doc, {
       externalId: draft.customerExternalId,
       source: draft.source,
       name: draft.customerName,
@@ -354,127 +145,134 @@ export function upsertInvoice(
     }).id;
   }
 
-  let existingId: string | undefined;
-  if (preferredId) {
-    const row = db.prepare(`SELECT id FROM invoices WHERE id = ?`).get(preferredId) as { id: string } | undefined;
-    if (!row) throw new Error("Doklad už v evidenci není.");
-    const clash = db
-      .prepare(`SELECT id FROM invoices WHERE number = ? AND kind = ? AND id != ?`)
-      .get(number, draft.kind, preferredId) as { id: string } | undefined;
-    if (clash) throw new Error(`Doklad ${number} už existuje.`);
-    existingId = preferredId;
-  } else if (draft.externalId) {
-    const row = db.prepare(`SELECT id FROM invoices WHERE external_id = ?`).get(draft.externalId) as
-      | { id: string }
-      | undefined;
-    existingId = row?.id;
+  let existing =
+    (preferredId ? doc.invoices.find((invoice) => invoice.id === preferredId) : undefined) ||
+    (draft.externalId ? doc.invoices.find((invoice) => invoice.externalId === draft.externalId) : undefined) ||
+    doc.invoices.find((invoice) => invoice.number === number && invoice.kind === draft.kind);
+
+  if (preferredId && !doc.invoices.some((invoice) => invoice.id === preferredId)) {
+    throw new Error("Doklad už v evidenci není.");
   }
-  if (!existingId) {
-    const row = db.prepare(`SELECT id, external_id FROM invoices WHERE number = ? AND kind = ?`).get(number, draft.kind) as
-      | { id: string; external_id: string | null }
-      | undefined;
-    if (row && (!row.external_id || !draft.externalId || row.external_id === draft.externalId)) {
-      existingId = row.id;
-    }
+  if (preferredId) {
+    const clash = doc.invoices.find((invoice) => invoice.number === number && invoice.kind === draft.kind && invoice.id !== preferredId);
+    if (clash) throw new Error(`Doklad ${number} už existuje.`);
   }
 
-  const values = [
-    draft.externalId,
-    draft.source,
-    draft.kind,
+  const header = {
+    externalId: draft.externalId ?? existing?.externalId ?? null,
+    source: draft.source,
+    kind: draft.kind,
     number,
-    draft.variableSymbol.trim(),
-    draft.constantSymbol.trim(),
-    draft.specificSymbol.trim(),
+    variableSymbol: draft.variableSymbol.trim(),
+    constantSymbol: draft.constantSymbol.trim(),
+    specificSymbol: draft.specificSymbol.trim(),
     customerId,
-    draft.customerName.trim(),
-    draft.customerIco.trim(),
-    draft.customerDic.trim(),
-    draft.customerStreet.trim(),
-    draft.customerCity.trim(),
-    draft.customerZip.trim(),
-    draft.customerCountry.trim(),
-    draft.customerEmail.trim(),
-    draft.issueDate,
-    draft.dueDate,
-    draft.taxDate,
-    draft.paidDate,
-    draft.currency || "CZK",
-    draft.status,
-    draft.description.trim(),
-    draft.note.trim(),
+    customerName: draft.customerName.trim(),
+    customerIco: draft.customerIco.trim(),
+    customerDic: draft.customerDic.trim(),
+    customerStreet: draft.customerStreet.trim(),
+    customerCity: draft.customerCity.trim(),
+    customerZip: draft.customerZip.trim(),
+    customerCountry: draft.customerCountry.trim(),
+    customerEmail: draft.customerEmail.trim(),
+    issueDate: draft.issueDate,
+    dueDate: draft.dueDate,
+    taxDate: draft.taxDate,
+    paidDate: draft.paidDate,
+    currency: draft.currency || "CZK",
+    status: draft.status,
+    description: draft.description.trim(),
+    note: draft.note.trim(),
     totalNet,
     totalVat,
     totalGross,
-    now,
-  ] as const;
+    updatedAt: now,
+  };
 
-  let id = existingId;
+  let id = existing?.id;
   let created = false;
-  if (id) {
-    db.prepare(
-      `UPDATE invoices SET
-        external_id = COALESCE(?, external_id),
-        source = ?, kind = ?, number = ?, variable_symbol = ?, constant_symbol = ?, specific_symbol = ?,
-        customer_id = ?, customer_name = ?, customer_ico = ?, customer_dic = ?, customer_street = ?,
-        customer_city = ?, customer_zip = ?, customer_country = ?, customer_email = ?,
-        issue_date = ?, due_date = ?, tax_date = ?, paid_date = ?, currency = ?, status = ?,
-        description = ?, note = ?, total_net = ?, total_vat = ?, total_gross = ?, updated_at = ?
-      WHERE id = ?`,
-    ).run(...values, id);
-    db.prepare(`DELETE FROM invoice_items WHERE invoice_id = ?`).run(id);
+  if (existing && id) {
+    Object.assign(existing, header);
   } else {
     id = randomUUID();
     created = true;
-    db.prepare(
-      `INSERT INTO invoices (
-        id, external_id, source, kind, number, variable_symbol, constant_symbol, specific_symbol,
-        customer_id, customer_name, customer_ico, customer_dic, customer_street, customer_city,
-        customer_zip, customer_country, customer_email, issue_date, due_date, tax_date, paid_date,
-        currency, status, description, note, total_net, total_vat, total_gross, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(id, ...values.slice(0, -1), now, now);
+    doc.invoices.push({
+      id,
+      ...header,
+      createdAt: now,
+    });
   }
 
-  const insertItem = db.prepare(
-    `INSERT INTO invoice_items (
-      id, invoice_id, position, name, quantity, unit, unit_price, vat_rate, total_net, total_vat, total_gross
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  );
+  doc.items = doc.items.filter((item) => item.invoiceId !== id);
   for (const item of items) {
-    insertItem.run(
-      randomUUID(),
-      id,
-      item.position,
-      item.name,
-      item.quantity,
-      item.unit,
-      item.unitPrice,
-      item.vatRate,
-      item.totalNet,
-      item.totalVat,
-      item.totalGross,
-    );
+    doc.items.push({
+      id: randomUUID(),
+      invoiceId: id!,
+      ...item,
+    });
   }
-  return { id, created };
+  return { id: id!, created };
 }
 
-export function applyImport(customers: CustomerDraft[], invoices: InvoiceDraft[], supplier: SupplierDraft | null): ImportCounts {
-  const db = getDb();
-  const counts: ImportCounts = {
-    customersCreated: 0,
-    customersUpdated: 0,
-    invoicesCreated: 0,
-    invoicesUpdated: 0,
-    warnings: [],
-  };
-  const run = db.transaction(() => {
+function fillCompanyIfEmptyInDoc(doc: StoreDocument, supplier: SupplierDraft) {
+  if (doc.company.name.trim()) return;
+  doc.company.name = supplier.name.trim();
+  doc.company.ico = supplier.ico.trim();
+  doc.company.dic = supplier.dic.trim();
+  doc.company.street = supplier.street.trim();
+  doc.company.city = supplier.city.trim();
+  doc.company.zip = supplier.zip.trim();
+  doc.company.country = supplier.country.trim() || "Česká republika";
+  doc.company.email = supplier.email.trim();
+  doc.company.phone = supplier.phone.trim();
+  doc.company.bankAccount = supplier.bankAccount.trim();
+  doc.company.bankCode = supplier.bankCode.trim();
+  doc.company.iban = supplier.iban.trim();
+  doc.company.swift = supplier.swift.trim();
+}
+
+export async function upsertCustomer(draft: CustomerDraft): Promise<{ id: string; created: boolean }> {
+  return updateStore((doc) => upsertCustomerInDoc(doc, draft));
+}
+
+export async function saveManualCustomer(id: string | null, draft: CustomerDraft): Promise<string> {
+  return updateStore((doc) => {
+    const customer = blankCustomer({ ...draft, source: "manual", externalId: null });
+    if (!customer.name) throw new Error("Odběratel nemá název.");
+    const now = new Date().toISOString();
+    if (id) {
+      const existing = doc.customers.find((row) => row.id === id);
+      if (!existing) throw new Error("Odběratel už v evidenci není.");
+      Object.assign(existing, customer, { id, updatedAt: now, createdAt: existing.createdAt, externalId: existing.externalId, source: existing.source === "manual" ? "manual" : existing.source });
+      return id;
+    }
+    return upsertCustomerInDoc(doc, customer).id;
+  });
+}
+
+export async function upsertInvoice(
+  draft: InvoiceDraft,
+  preferredId?: string | null,
+  linkedCustomerId?: string | null,
+): Promise<{ id: string; created: boolean }> {
+  return updateStore((doc) => upsertInvoiceInDoc(doc, draft, preferredId, linkedCustomerId));
+}
+
+export async function applyImport(customers: CustomerDraft[], invoices: InvoiceDraft[], supplier: SupplierDraft | null): Promise<ImportCounts> {
+  return updateStore((doc) => {
+    const counts: ImportCounts = {
+      customersCreated: 0,
+      customersUpdated: 0,
+      invoicesCreated: 0,
+      invoicesUpdated: 0,
+      warnings: [],
+    };
     for (const customer of customers) {
       if (!customer.name.trim()) {
         counts.warnings.push("Kontakt bez názvu byl přeskočen.");
         continue;
       }
-      const result = upsertCustomer(customer);
+      const result = upsertCustomerInDoc(doc, customer);
       if (result.created) counts.customersCreated += 1;
       else counts.customersUpdated += 1;
     }
@@ -484,77 +282,62 @@ export function applyImport(customers: CustomerDraft[], invoices: InvoiceDraft[]
         continue;
       }
       try {
-        const result = upsertInvoice(invoice);
+        const result = upsertInvoiceInDoc(doc, invoice);
         if (result.created) counts.invoicesCreated += 1;
         else counts.invoicesUpdated += 1;
       } catch (error) {
         counts.warnings.push(error instanceof Error ? error.message : "Doklad se nepodařilo uložit.");
       }
     }
-    if (supplier?.name.trim()) fillCompanyIfEmpty(supplier);
+    if (supplier?.name.trim()) fillCompanyIfEmptyInDoc(doc, supplier);
+    return counts;
   });
-  run();
-  return counts;
 }
 
-export function fillCompanyIfEmpty(supplier: SupplierDraft) {
-  const db = getDb();
-  const current = db.prepare(`SELECT name FROM company WHERE id = 1`).get() as { name: string };
-  if (current.name.trim()) return;
-  db.prepare(
-    `UPDATE company SET
-      name = ?, ico = ?, dic = ?, street = ?, city = ?, zip = ?, country = ?,
-      email = ?, phone = ?, bank_account = ?, bank_code = ?, iban = ?, swift = ?, updated_at = ?
-    WHERE id = 1`,
-  ).run(
-    supplier.name.trim(),
-    supplier.ico.trim(),
-    supplier.dic.trim(),
-    supplier.street.trim(),
-    supplier.city.trim(),
-    supplier.zip.trim(),
-    supplier.country.trim() || "Česká republika",
-    supplier.email.trim(),
-    supplier.phone.trim(),
-    supplier.bankAccount.trim(),
-    supplier.bankCode.trim(),
-    supplier.iban.trim(),
-    supplier.swift.trim(),
-    new Date().toISOString(),
-  );
+export async function loadItems(invoiceId: string): Promise<InvoiceItem[]> {
+  const doc = await loadStore();
+  return doc.items.filter((item) => item.invoiceId === invoiceId).sort((a, b) => a.position - b.position);
 }
 
-export function loadItems(invoiceId: string): InvoiceItem[] {
-  const rows = getDb()
-    .prepare(`SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY position`)
-    .all(invoiceId) as ItemRow[];
-  return rows.map(mapItem);
+export async function getCustomerRow(id: string): Promise<Customer | null> {
+  const doc = await loadStore();
+  return doc.customers.find((customer) => customer.id === id) ?? null;
 }
 
-export function getCustomerRow(id: string): Customer | null {
-  const row = getDb().prepare(`SELECT * FROM customers WHERE id = ?`).get(id) as CustomerRow | undefined;
-  return row ? mapCustomer(row) : null;
+export async function getInvoiceRow(id: string): Promise<Invoice | null> {
+  const doc = await loadStore();
+  const invoice = doc.invoices.find((row) => row.id === id);
+  if (!invoice) return null;
+  return {
+    ...invoice,
+    items: doc.items.filter((item) => item.invoiceId === id).sort((a, b) => a.position - b.position),
+  };
 }
 
-export function getInvoiceRow(id: string): Invoice | null {
-  const row = getDb().prepare(`SELECT * FROM invoices WHERE id = ?`).get(id) as InvoiceRow | undefined;
-  if (!row) return null;
-  return mapInvoice(row, loadItems(id));
+export async function deleteCustomer(id: string) {
+  await updateStore((doc) => {
+    doc.customers = doc.customers.filter((customer) => customer.id !== id);
+    for (const invoice of doc.invoices) {
+      if (invoice.customerId === id) invoice.customerId = null;
+    }
+  });
 }
 
-export function deleteCustomer(id: string) {
-  getDb().prepare(`DELETE FROM customers WHERE id = ?`).run(id);
+export async function deleteInvoice(id: string) {
+  await updateStore((doc) => {
+    doc.invoices = doc.invoices.filter((invoice) => invoice.id !== id);
+    doc.items = doc.items.filter((item) => item.invoiceId !== id);
+  });
 }
 
-export function deleteInvoice(id: string) {
-  getDb().prepare(`DELETE FROM invoices WHERE id = ?`).run(id);
-}
-
-export function setInvoicePayment(id: string, paidDate: string | null) {
-  const status = paidDate ? "paid" : "issued";
-  getDb()
-    .prepare(`UPDATE invoices SET status = ?, paid_date = ?, updated_at = ? WHERE id = ?`)
-    .run(status, paidDate, new Date().toISOString(), id);
+export async function setInvoicePayment(id: string, paidDate: string | null) {
+  await updateStore((doc) => {
+    const invoice = doc.invoices.find((row) => row.id === id);
+    if (!invoice) return;
+    invoice.status = paidDate ? "paid" : "issued";
+    invoice.paidDate = paidDate;
+    invoice.updatedAt = new Date().toISOString();
+  });
 }
 
 export type CompanySecrets = {
@@ -562,131 +345,84 @@ export type CompanySecrets = {
   clientSecret: string;
 };
 
-export function readCompanySecrets(): CompanySecrets {
-  const row = getDb().prepare(`SELECT idoklad_client_id, idoklad_client_secret FROM company WHERE id = 1`).get() as {
-    idoklad_client_id: string;
-    idoklad_client_secret: string;
-  };
-  return { clientId: row.idoklad_client_id, clientSecret: row.idoklad_client_secret };
+export async function readCompanySecrets(): Promise<CompanySecrets> {
+  const doc = await loadStore();
+  return { clientId: doc.company.idokladClientId, clientSecret: doc.company.idokladClientSecret };
 }
 
-export function saveCompany(input: SupplierDraft & { clientId: string; clientSecret: string | null; clearSecret: boolean }) {
-  const db = getDb();
-  const current = readCompanySecrets();
-  const secret = input.clearSecret ? "" : input.clientSecret?.trim() || current.clientSecret;
-  const clientId = input.clearSecret ? "" : input.clientId.trim() || current.clientId;
-  db.prepare(
-    `UPDATE company SET
-      name = ?, ico = ?, dic = ?, street = ?, city = ?, zip = ?, country = ?,
-      email = ?, phone = ?, bank_account = ?, bank_code = ?, iban = ?, swift = ?,
-      idoklad_client_id = ?, idoklad_client_secret = ?, updated_at = ?
-    WHERE id = 1`,
-  ).run(
-    input.name.trim(),
-    input.ico.trim(),
-    input.dic.trim(),
-    input.street.trim(),
-    input.city.trim(),
-    input.zip.trim(),
-    input.country.trim() || "Česká republika",
-    input.email.trim(),
-    input.phone.trim(),
-    input.bankAccount.trim(),
-    input.bankCode.trim(),
-    input.iban.trim(),
-    input.swift.trim(),
-    clientId,
-    secret,
-    new Date().toISOString(),
+export async function saveCompany(input: SupplierDraft & { clientId: string; clientSecret: string | null; clearSecret: boolean }) {
+  await updateStore((doc) => {
+    const secret = input.clearSecret ? "" : input.clientSecret?.trim() || doc.company.idokladClientSecret;
+    const clientId = input.clearSecret ? "" : input.clientId.trim() || doc.company.idokladClientId;
+    doc.company.name = input.name.trim();
+    doc.company.ico = input.ico.trim();
+    doc.company.dic = input.dic.trim();
+    doc.company.street = input.street.trim();
+    doc.company.city = input.city.trim();
+    doc.company.zip = input.zip.trim();
+    doc.company.country = input.country.trim() || "Česká republika";
+    doc.company.email = input.email.trim();
+    doc.company.phone = input.phone.trim();
+    doc.company.bankAccount = input.bankAccount.trim();
+    doc.company.bankCode = input.bankCode.trim();
+    doc.company.iban = input.iban.trim();
+    doc.company.swift = input.swift.trim();
+    doc.company.idokladClientId = clientId;
+    doc.company.idokladClientSecret = secret;
+  });
+}
+
+export async function readCompanyPublic() {
+  const doc = await loadStore();
+  const { idokladClientSecret: _secret, ...company } = doc.company;
+  return {
+    ...company,
+    hasIdokladSecret: Boolean(_secret),
+  };
+}
+
+export async function listCustomerRows(query: string): Promise<Customer[]> {
+  const doc = await loadStore();
+  const rows = [...doc.customers].sort((a, b) => a.name.localeCompare(b.name, "cs"));
+  if (!query.trim()) return rows;
+  const needle = query.trim().toLowerCase();
+  return rows.filter((customer) =>
+    [customer.name, customer.ico, customer.dic, customer.email].join(" ").toLowerCase().includes(needle),
   );
 }
 
-export function readCompanyPublic() {
-  const row = getDb().prepare(`SELECT * FROM company WHERE id = 1`).get() as {
-    name: string;
-    ico: string;
-    dic: string;
-    street: string;
-    city: string;
-    zip: string;
-    country: string;
-    email: string;
-    phone: string;
-    bank_account: string;
-    bank_code: string;
-    iban: string;
-    swift: string;
-    idoklad_client_id: string;
-    idoklad_client_secret: string;
-  };
-  return {
-    name: row.name,
-    ico: row.ico,
-    dic: row.dic,
-    street: row.street,
-    city: row.city,
-    zip: row.zip,
-    country: row.country,
-    email: row.email,
-    phone: row.phone,
-    bankAccount: row.bank_account,
-    bankCode: row.bank_code,
-    iban: row.iban,
-    swift: row.swift,
-    idokladClientId: row.idoklad_client_id,
-    hasIdokladSecret: row.idoklad_client_secret.length > 0,
-  };
-}
-
-export function listCustomerRows(query: string): Customer[] {
-  const db = getDb();
-  if (!query.trim()) {
-    return (db.prepare(`SELECT * FROM customers ORDER BY name COLLATE NOCASE`).all() as CustomerRow[]).map(mapCustomer);
-  }
-  const like = `%${query.trim().replace(/[\\%_]/g, "\\$&")}%`;
-  return (
-    db
-      .prepare(
-        `SELECT * FROM customers
-         WHERE name LIKE ? ESCAPE '\\' OR ico LIKE ? ESCAPE '\\' OR dic LIKE ? ESCAPE '\\' OR email LIKE ? ESCAPE '\\'
-         ORDER BY name COLLATE NOCASE`,
-      )
-      .all(like, like, like, like) as CustomerRow[]
-  ).map(mapCustomer);
-}
-
-export function listInvoiceRows(filter: { query?: string; status?: string; kind?: string; customerId?: string }): Invoice[] {
-  const db = getDb();
-  const where: string[] = [];
-  const params: string[] = [];
-  if (filter.kind && filter.kind !== "all") {
-    where.push(`kind = ?`);
-    params.push(filter.kind);
-  }
-  if (filter.customerId) {
-    where.push(`customer_id = ?`);
-    params.push(filter.customerId);
-  }
+export async function listInvoiceRows(filter: {
+  query?: string;
+  status?: string;
+  kind?: string;
+  customerId?: string;
+}): Promise<Invoice[]> {
+  const doc = await loadStore();
+  let rows = [...doc.invoices];
+  if (filter.kind && filter.kind !== "all") rows = rows.filter((invoice) => invoice.kind === filter.kind);
+  if (filter.customerId) rows = rows.filter((invoice) => invoice.customerId === filter.customerId);
   if (filter.query?.trim()) {
-    const like = `%${filter.query.trim().replace(/[\\%_]/g, "\\$&")}%`;
-    where.push(
-      `(number LIKE ? ESCAPE '\\' OR variable_symbol LIKE ? ESCAPE '\\' OR customer_name LIKE ? ESCAPE '\\' OR customer_ico LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')`,
+    const needle = filter.query.trim().toLowerCase();
+    rows = rows.filter((invoice) =>
+      [invoice.number, invoice.variableSymbol, invoice.customerName, invoice.customerIco, invoice.description]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle),
     );
-    params.push(like, like, like, like, like);
   }
-  const sql = `SELECT * FROM invoices ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY issue_date DESC, number DESC`;
-  const rows = db.prepare(sql).all(...params) as InvoiceRow[];
-  return rows.map((row) => mapInvoice(row));
+  rows.sort((a, b) => b.issueDate.localeCompare(a.issueDate) || b.number.localeCompare(a.number));
+  return rows.map((invoice) => ({ ...invoice, items: [] }));
 }
 
-export function listInvoiceNumbers(): string[] {
-  const rows = getDb().prepare(`SELECT number FROM invoices`).all() as { number: string }[];
-  return rows.map((row) => row.number);
+export async function listInvoiceNumbers(): Promise<string[]> {
+  const doc = await loadStore();
+  return doc.invoices.map((invoice) => invoice.number);
 }
 
-export function dashboardRows() {
-  const db = getDb();
-  const invoices = db.prepare(`SELECT * FROM invoices`).all() as InvoiceRow[];
-  const customerCount = (db.prepare(`SELECT COUNT(*) AS count FROM customers`).get() as { count: number }).count;
-  return { invoices: invoices.map((row) => mapInvoice(row)), customerCount };
+export async function dashboardRows() {
+  const doc = await loadStore();
+  return {
+    invoices: doc.invoices.map((invoice) => ({ ...invoice, items: [] })),
+    customerCount: doc.customers.length,
+  };
 }
