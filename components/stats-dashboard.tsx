@@ -98,7 +98,7 @@ export function StatsDashboard({ invoices }: { invoices: StatsInvoice[] }) {
             >
               <option value="">Celý rok / měsíc</option>
               {MONTH_NAMES.map((name, index) => (
-                <option key={name} value={String(index + 1)}>
+                <option key={name} value={String(index + 1).padStart(2, "0")}>
                   {name}
                 </option>
               ))}

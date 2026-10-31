@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/page-header";
-import { StatsDashboard } from "@/components/stats-dashboard";
+import { StatsDashboardLazy } from "@/components/stats-dashboard-lazy";
 import { getStatsInvoices } from "@/lib/queries";
 
 export const metadata = { title: "Statistiky" };
@@ -19,7 +19,7 @@ export default async function StatisticsPage() {
           <p className="mt-2 text-sm text-muted-foreground">Importujte faktury, nebo vystavte první doklad.</p>
         </div>
       ) : (
-        <StatsDashboard invoices={invoices} />
+        <StatsDashboardLazy invoices={invoices} />
       )}
     </div>
   );

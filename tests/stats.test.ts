@@ -105,4 +105,36 @@ test("chart series switches between years and months", () => {
   assert.equal(byMonth.points.length, 12);
   assert.equal(byMonth.points[0].count, 1);
   assert.equal(byMonth.points[1].total, 5000);
+  assert.equal(byMonth.points[0].key, "2026-01");
+});
+
+test("month filter accepts padded and unpadded values", () => {
+  const padded = chartSeries(sample, {
+    year: "2026",
+    quarter: "",
+    month: "01",
+    customerKey: "",
+    status: "all",
+  });
+  const unpadded = chartSeries(sample, {
+    year: "2026",
+    quarter: "",
+    month: "1",
+    customerKey: "",
+    status: "all",
+  });
+  assert.equal(padded.mode, "month");
+  assert.equal(padded.points.length, 1);
+  assert.equal(padded.points[0].total, 10000);
+  assert.equal(unpadded.points[0].total, padded.points[0].total);
+
+  const filtered = filterInvoices(sample, {
+    year: "2026",
+    quarter: "",
+    month: "01",
+    customerKey: "",
+    status: "all",
+  });
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0].number, "VF 01/2026");
 });

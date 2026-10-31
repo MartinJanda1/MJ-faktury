@@ -5,6 +5,9 @@ import { formatStatsHours, formatStatsMoney, type StatsPoint } from "@/lib/invoi
 const BRAND = "#00b5c8";
 const PALETTE = ["#0d9488", "#0284c7", "#7c3aed", "#d97706", "#e11d48", "#16a34a", "#0891b2", "#4f46e5"];
 
+/** Pixel height of the bar area inside the h-72 chart (leaves room for month labels). */
+const BAR_AREA_PX = 248;
+
 export function RevenueBars({ points, title }: { points: StatsPoint[]; title: string }) {
   const max = Math.max(1, ...points.map((point) => point.total));
   return (
@@ -13,19 +16,24 @@ export function RevenueBars({ points, title }: { points: StatsPoint[]; title: st
       {points.length === 0 ? (
         <p className="flex h-72 items-center justify-center text-sm text-muted-foreground">Žádná data</p>
       ) : (
-        <div className="flex h-72 items-end gap-1.5 sm:gap-2">
+        <div className="flex h-72 items-stretch gap-1.5 sm:gap-2">
           {points.map((point) => {
-            const height = Math.max(point.total > 0 ? 8 : 2, Math.round((point.total / max) * 100));
+            const barHeight = Math.max(
+              point.total > 0 ? 8 : 2,
+              Math.round((point.total / max) * BAR_AREA_PX),
+            );
             return (
-              <div key={point.key} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
-                <div className="group relative flex w-full flex-1 items-end justify-center">
+              <div key={point.key} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                <div className="relative flex w-full min-h-0 flex-1 items-end justify-center">
                   <div
                     className="w-full max-w-10 rounded-t-sm transition-opacity hover:opacity-90"
-                    style={{ height: `${height}%`, backgroundColor: BRAND }}
+                    style={{ height: `${barHeight}px`, backgroundColor: BRAND }}
                     title={`${point.fullLabel || point.label}: ${formatStatsMoney(point.total)} Kč · ${point.count} faktur · ${formatStatsHours(point.hours)} h`}
                   />
                 </div>
-                <span className="max-w-full truncate text-[10px] text-muted-foreground sm:text-xs">{point.label}</span>
+                <span className="max-w-full shrink-0 truncate text-[10px] text-muted-foreground sm:text-xs">
+                  {point.label}
+                </span>
               </div>
             );
           })}
