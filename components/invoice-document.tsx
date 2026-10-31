@@ -1,5 +1,7 @@
-import { PaymentQr } from "@/components/payment-qr";
-import { buildSpaydString, resolveIban } from "@/lib/payment-qr";
+import QRCode from "qrcode";
+import { PaymentQr, PaymentQrMissing } from "@/components/payment-qr";
+import { DEFAULT_PAYMENT_METHOD } from "@/lib/invoice-fields";
+import { buildSpaydString, isTransferPayment, resolveIban } from "@/lib/payment-qr";
 import { formatDate, formatQuantity } from "@/lib/money";
 import type { Company, Invoice } from "@/lib/types";
 import { isNonVatPayer } from "@/lib/vat";
@@ -25,20 +27,19 @@ function cityLine(zip: string, city: string): string {
   return [zip, city].filter(Boolean).join(" ");
 }
 
-function isTransferPayment(method: string): boolean {
-  const normalized = method
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-  if (!normalized) return true;
-  return (
-    normalized.includes("prevod") ||
-    normalized.includes("transfer") ||
-    normalized.includes("bank") ||
-    normalized === "qr" ||
-    normalized.includes("spayd")
-  );
+const QR_SIZE = 120;
+
+async function buildQrDataUrl(spayd: string): Promise<string | null> {
+  try {
+    return await QRCode.toDataURL(spayd, {
+      width: QR_SIZE,
+      margin: 1,
+      errorCorrectionLevel: "M",
+      color: { dark: "#000000", light: "#ffffff" },
+    });
+  } catch {
+    return null;
+  }
 }
 
 export type InvoiceDocumentProps = {
@@ -48,23 +49,28 @@ export type InvoiceDocumentProps = {
   showQr?: boolean;
 };
 
-export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentProps) {
+export async function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentProps) {
   const account = accountLabel(company);
   const iban = resolveIban(account, company.iban);
   const hideVat = isNonVatPayer(company);
   const amount = hideVat ? invoice.totalNet || invoice.totalGross : invoice.totalGross;
   const layout = invoice.layout === "idoklad" ? "idoklad" : "classic";
-  const paymentMethod = invoice.paymentMethod || "Převodem";
-  const spayd = buildSpaydString({
-    iban,
-    amount,
-    variableSymbol: invoice.variableSymbol,
-    constantSymbol: invoice.constantSymbol,
-    dueDate: invoice.dueDate,
-    message: invoice.number ? `Faktura ${invoice.number}` : "Faktura",
-  });
+  const paymentMethod = (invoice.paymentMethod || "").trim() || DEFAULT_PAYMENT_METHOD;
+  const wantsQr = showQr !== false && isTransferPayment(paymentMethod) && amount > 0;
+  const spayd = wantsQr
+    ? buildSpaydString({
+        iban,
+        amount,
+        variableSymbol: invoice.variableSymbol,
+        constantSymbol: invoice.constantSymbol,
+        dueDate: invoice.dueDate,
+        message: invoice.number ? `Faktura ${invoice.number}` : "Faktura",
+      })
+    : null;
   // QR is automatic for bank transfer whenever SPAYD can be built — no separate toggle.
-  const qrVisible = showQr !== false && isTransferPayment(paymentMethod) && Boolean(spayd && amount > 0);
+  const qrVisible = Boolean(spayd);
+  const needsBankHint = wantsQr && !spayd;
+  const qrSrc = qrVisible && spayd ? await buildQrDataUrl(spayd) : null;
   const totalText = formatCzechAmount(amount);
 
   return (
@@ -303,7 +309,11 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
         </div>
         <div className="section-body">
           <div className="recap-row">
-            {qrVisible && spayd ? <PaymentQr spayd={spayd} /> : null}
+            {qrVisible && spayd ? (
+              <PaymentQr spayd={spayd} initialSrc={qrSrc} />
+            ) : needsBankHint ? (
+              <PaymentQrMissing />
+            ) : null}
             <div className="recap-totals">
               {hideVat ? null : (
                 <>

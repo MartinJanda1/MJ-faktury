@@ -5,6 +5,8 @@ import QRCode from "qrcode";
 
 type PaymentQrProps = {
   spayd: string;
+  /** Optional server-precomputed data URL so the QR is visible before hydration. */
+  initialSrc?: string | null;
 };
 
 const QR_SIZE = 120;
@@ -13,13 +15,19 @@ const QR_SIZE = 120;
  * Renders SPAYD payment QR as an <img> data URL so it survives print and html2pdf
  * (canvas pixels are often blank after clone / print).
  */
-export function PaymentQr({ spayd }: PaymentQrProps) {
-  const [src, setSrc] = useState<string | null>(null);
+export function PaymentQr({ spayd, initialSrc = null }: PaymentQrProps) {
+  const [src, setSrc] = useState<string | null>(initialSrc);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setFailed(false);
+    if (initialSrc) {
+      setSrc(initialSrc);
+      return () => {
+        cancelled = true;
+      };
+    }
     setSrc(null);
 
     void QRCode.toDataURL(spayd, {
@@ -41,9 +49,15 @@ export function PaymentQr({ spayd }: PaymentQrProps) {
     return () => {
       cancelled = true;
     };
-  }, [spayd]);
+  }, [spayd, initialSrc]);
 
-  if (failed) return null;
+  if (failed) {
+    return (
+      <div className="payment-qr-missing" role="status">
+        QR platbu se nepodařilo vykreslit
+      </div>
+    );
+  }
 
   return (
     <div
@@ -78,6 +92,15 @@ export function PaymentQr({ spayd }: PaymentQrProps) {
   );
 }
 
+/** Visible when bank transfer is selected but company bank details are missing. */
+export function PaymentQrMissing() {
+  return (
+    <div id="payment-qr-wrap" className="payment-qr-missing" data-qr-missing="1" role="status">
+      Doplňte účet v Nastavení pro QR platbu
+    </div>
+  );
+}
+
 /** Wait until PaymentQr has drawn (or decided there is nothing to draw). */
 export async function waitForPaymentQr(timeoutMs = 4_000): Promise<void> {
   if (typeof document === "undefined") return;
@@ -86,6 +109,7 @@ export async function waitForPaymentQr(timeoutMs = 4_000): Promise<void> {
   while (Date.now() < deadline) {
     const wrap = document.getElementById("payment-qr-wrap");
     if (!wrap) return; // invoice has no QR host (not transfer / no SPAYD)
+    if (wrap.getAttribute("data-qr-missing") === "1") return;
     if (wrap.getAttribute("data-qr-ready") === "1") {
       const img = wrap.querySelector<HTMLImageElement>("[data-qr-image]");
       if (img?.complete) return;

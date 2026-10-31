@@ -4,6 +4,23 @@ export type CzechBankAccount = {
   account: string;
 };
 
+/** Empty / bank-transfer-like methods qualify for SPAYD QR. */
+export function isTransferPayment(method: string): boolean {
+  const normalized = method
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  if (!normalized) return true;
+  return (
+    normalized.includes("prevod") ||
+    normalized.includes("transfer") ||
+    normalized.includes("bank") ||
+    normalized === "qr" ||
+    normalized.includes("spayd")
+  );
+}
+
 export type SpaydInput = {
   iban: string | null | undefined;
   amount: number;
