@@ -18,6 +18,7 @@ test("money helpers read Czech amounts and dates", () => {
   assert.equal(parseAmount("1 234,50 Kč"), 1234.5);
   assert.equal(parseAmount("1.234,50"), 1234.5);
   assert.equal(parseIsoDate("1. 3. 2024"), "2024-03-01");
+  assert.equal(parseIsoDate("09/30/2026"), "2026-09-30");
   assert.equal(snapVat(20.9), 21);
   assert.deepEqual(lineTotals(2, 100, 21), { totalNet: 200, totalVat: 42, totalGross: 242 });
 });
@@ -91,6 +92,26 @@ test("semicolon CSV import groups a summary invoice", () => {
   assert.equal(imported.invoices[0].items[0].totalGross, 1210);
   assert.equal(imported.invoices[0].items[0].vatRate, 21);
   assert.equal(imported.customers[0].ico, "12345678");
+});
+
+test("iDoklad issued-invoice list CSV maps Název/Jméno, dates and Kč", () => {
+  const csv = `Číslo dokladu,Popis,Číslo objednávky,Řada,Název/Jméno,IČ,DIČ,Vystaveno,Splatnost,Datum platby,Celkem,Měna,Stav úhrady,Uhrazená částka,Variabilní symbol,Exportováno,Odesláno odběrateli,Odesláno účetnímu
+VF 09/2026,"Odborné práce",,Výchozí,Your Solutions s.r.o.,22154256,,09/30/2026,10/30/2026,10/31/2026,81250.00,Kč,Uhrazeno,81250.00,92026,Ne,Neodesláno,Ne
+VF 08/2026,"Odborné práce",,Výchozí,"YOUR SYSTEM, spol.s r.o.",25596641,,08/31/2026,09/30/2026,09/30/2026,70000.00,Kč,Uhrazeno,70000.00,82026,Ne,Neodesláno,Ne
+`;
+  const imported = importRows(parseCsv(csv), "Seznam vydaných faktur.csv");
+  assert.equal(imported.invoices.length, 2);
+  assert.equal(imported.invoices[0].customerName, "Your Solutions s.r.o.");
+  assert.equal(imported.invoices[0].customerIco, "22154256");
+  assert.equal(imported.invoices[0].issueDate, "2026-09-30");
+  assert.equal(imported.invoices[0].dueDate, "2026-10-30");
+  assert.equal(imported.invoices[0].paidDate, "2026-10-31");
+  assert.equal(imported.invoices[0].status, "paid");
+  assert.equal(imported.invoices[0].currency, "CZK");
+  assert.equal(imported.invoices[0].items[0].totalGross, 81250);
+  assert.equal(imported.customers.length, 2);
+  assert.equal(imported.customers[1].name, "YOUR SYSTEM, spol.s r.o.");
+  assert.equal(parseIsoDate("09/30/2026"), "2026-09-30");
 });
 
 test("ISDOC keeps line items and the customer", () => {

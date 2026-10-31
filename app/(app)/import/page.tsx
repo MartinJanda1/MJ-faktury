@@ -18,9 +18,10 @@ export default async function ImportPage() {
           V iDokladu otevřete <strong className="font-medium text-foreground">Prodej → Faktury vydané</strong> (případně i Kontakty).
         </li>
         <li>
-          Klikněte na <strong className="font-medium text-foreground">Export</strong>, vyberte CSV nebo XLSX a všechny sloupce, které chcete přenést.
+          Klikněte na <strong className="font-medium text-foreground">Export</strong>, vyberte CSV nebo XLSX. Stačí výchozí sloupce ze seznamu faktur
+          (včetně <strong className="font-medium text-foreground">Název/Jméno</strong>, IČ, dat a částky).
         </li>
-        <li>Soubor nahrajte níže. Opakovaný import aktualizuje doklady se stejným číslem.</li>
+        <li>Soubor nahrajte níže. Opakovaný import aktualizuje doklady se stejným číslem a doplní odběratele.</li>
       </ol>
       <div className="max-w-3xl rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-5">
         <ImportPanel clientId={company.idokladClientId} hasSecret={company.hasIdokladSecret} />

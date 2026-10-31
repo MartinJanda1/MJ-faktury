@@ -95,7 +95,33 @@ export function parseIsoDate(value: unknown): string {
   if (czech) {
     return `${czech[3]}-${czech[2].padStart(2, "0")}-${czech[1].padStart(2, "0")}`;
   }
+  // iDoklad Excel/CSV export commonly uses MM/DD/YYYY with slashes.
+  const slash = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (slash) {
+    const first = Number(slash[1]);
+    const second = Number(slash[2]);
+    const year = slash[3];
+    if (first > 12) {
+      return `${year}-${String(second).padStart(2, "0")}-${String(first).padStart(2, "0")}`;
+    }
+    return `${year}-${String(first).padStart(2, "0")}-${String(second).padStart(2, "0")}`;
+  }
   return "";
+}
+
+export function normalizeCurrency(value: unknown): string {
+  const raw = String(value ?? "")
+    .trim()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  if (!raw || raw === "KC" || raw === "KČ" || raw === "CZK" || raw === "CZ") return "CZK";
+  if (raw === "EUR" || raw === "EURO" || raw === "€") return "EUR";
+  if (raw === "USD" || raw === "$" || raw === "US$") return "USD";
+  if (raw === "GBP" || raw === "£") return "GBP";
+  if (raw === "PLN" || raw === "ZL" || raw === "ZŁ") return "PLN";
+  return raw.slice(0, 8);
 }
 
 export function todayPrague(now = new Date()): string {

@@ -1,4 +1,4 @@
-import { normalizeVatRate, parseAmount, parseIsoDate, roundMoney, snapVat } from "./money";
+import { normalizeCurrency, normalizeVatRate, parseAmount, parseIsoDate, roundMoney, snapVat } from "./money";
 import type { CustomerDraft, InvoiceDraft, InvoiceStatus } from "./types";
 
 export type TabularImport = {
@@ -28,7 +28,11 @@ const CONTACT_HEADERS = new Set([
   "companyname",
   "odberatel",
   "nazev",
+  "nazevjmeno",
+  "nazevfirmy",
+  "jmeno",
   "ico",
+  "ic",
   "dic",
   "ulice",
   "mesto",
@@ -36,6 +40,19 @@ const CONTACT_HEADERS = new Set([
   "email",
   "telefon",
 ]);
+
+const CUSTOMER_NAME_KEYS = [
+  "odberatel",
+  "firma",
+  "nazevjmeno",
+  "nazevfirmy",
+  "nazev",
+  "companyname",
+  "partner",
+  "zakaznik",
+  "jmeno",
+  "name",
+];
 
 export function normalizeHeader(value: string): string {
   return value
@@ -190,7 +207,17 @@ export function importRows(rows: string[][], filename: string): TabularImport {
 }
 
 function contactFromRow(row: string[], map: Map<string, number>): CustomerDraft {
-  const company = pick(row, map, ["firma", "companyname", "odberatel", "nazev", "name"]);
+  const company = pick(row, map, [
+    "odberatel",
+    "firma",
+    "nazevjmeno",
+    "nazevfirmy",
+    "nazev",
+    "companyname",
+    "partner",
+    "zakaznik",
+    "name",
+  ]);
   const person = [pick(row, map, ["jmeno", "firstname"]), pick(row, map, ["prijmeni", "surname"])].filter(Boolean).join(" ");
   return {
     externalId: null,
@@ -234,7 +261,8 @@ function invoiceFromRows(
   filename: string,
 ): InvoiceDraft {
   const first = rows[0];
-  const paidDate = parseIsoDate(pick(first, map, ["datumuhrady", "dateofpayment", "uhrazeno"])) || null;
+  const paidDate =
+    parseIsoDate(pick(first, map, ["datumplatby", "datumuhrady", "dateofpayment", "paiddate"])) || null;
   const items = hasItems
     ? rows.map((row) => {
         const quantity = parseAmount(pick(row, map, ["mnozstvi", "pocet", "amount", "quantity"])) || 1;
@@ -259,7 +287,7 @@ function invoiceFromRows(
     constantSymbol: pick(first, map, ["konstantnisymbol", "ks", "constantsymbol"]),
     specificSymbol: pick(first, map, ["specifickysymbol", "ss"]),
     customerExternalId: null,
-    customerName: pick(first, map, ["odberatel", "firma", "nazev", "companyname", "partner", "zakaznik"]),
+    customerName: pick(first, map, CUSTOMER_NAME_KEYS),
     customerIco: pick(first, map, ["ico", "ic", "identificationnumber"]),
     customerDic: pick(first, map, ["dic", "vatidentificationnumber"]),
     customerStreet: pick(first, map, ["ulice", "street"]),
@@ -271,8 +299,8 @@ function invoiceFromRows(
     dueDate: parseIsoDate(pick(first, map, ["datumsplatnosti", "dateofmaturity", "splatnost"])),
     taxDate: parseIsoDate(pick(first, map, ["datumzdanitelnehoplneni", "duzp", "dateoftaxing"])),
     paidDate,
-    currency: (pick(first, map, ["mena", "currency"]) || "CZK").toUpperCase(),
-    status: statusFromCell(pick(first, map, ["stav", "paymentstatus", "uhrazeno"]), paidDate ?? ""),
+    currency: normalizeCurrency(pick(first, map, ["mena", "currency"]) || "CZK"),
+    status: statusFromCell(pick(first, map, ["stavuhrady", "stav", "paymentstatus", "uhrazeno"]), paidDate ?? ""),
     description: pick(first, map, ["popis", "description", "predmet"]),
     note: hasItems ? "" : "Importováno ze seznamu. Položkový rozpis v exportu seznamu není.",
     items,
