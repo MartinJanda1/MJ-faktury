@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import QRCode from "qrcode";
+import { waitForPaymentQr } from "@/components/payment-qr";
 import { Button } from "@/components/ui/button";
 
 type InvoicePdfActionsProps = {
@@ -66,37 +66,15 @@ async function waitForPaint(): Promise<void> {
   });
 }
 
-async function renderPaymentQr(): Promise<void> {
-  const root = document.getElementById("invoice-document");
-  const canvas = document.getElementById("payment-qr-canvas") as HTMLCanvasElement | null;
-  const wrap = document.getElementById("payment-qr-wrap");
-  if (!root || !canvas || !wrap) return;
-
-  const spayd = root.dataset.spayd;
-  if (!spayd) {
-    wrap.style.display = "none";
-    return;
-  }
-
-  try {
-    await QRCode.toCanvas(canvas, spayd, {
-      width: 120,
-      margin: 1,
-      errorCorrectionLevel: "M",
-      color: { dark: "#000000", light: "#ffffff" },
-    });
-    wrap.style.display = "";
-    // Ensure pixels are committed before html2pdf clones the canvas → image.
-    await waitForPaint();
-  } catch {
-    wrap.style.display = "none";
-  }
+async function prepareInvoiceForExport(): Promise<void> {
+  await waitForPaymentQr();
+  await waitForPaint();
 }
 
 function openPrintFallback(): void {
   cleanupPdfExportArtifacts();
   // Prefer native print (Save as PDF) — reliable for classic A4 DOM.
-  window.print();
+  void prepareInvoiceForExport().then(() => window.print());
 }
 
 async function downloadPdfWithHtml2pdf(filename: string): Promise<void> {
@@ -105,8 +83,7 @@ async function downloadPdfWithHtml2pdf(filename: string): Promise<void> {
     throw new Error("Doklad na stránce chybí.");
   }
 
-  await renderPaymentQr();
-  await waitForPaint();
+  await prepareInvoiceForExport();
 
   const html2pdf = (await import("html2pdf.js")).default;
   // High DPR scales often blow past browser canvas limits on A4 → throw mid-capture
@@ -133,15 +110,20 @@ async function downloadPdfWithHtml2pdf(filename: string): Promise<void> {
       logging: false,
       removeContainer: true,
       onclone: (_doc: Document, cloned: HTMLElement) => {
-        // Re-paint QR from live canvas into clone if still a canvas (belt-and-suspenders).
-        const live = document.getElementById("payment-qr-canvas") as HTMLCanvasElement | null;
+        // Prefer copying live QR <img> data URL into the clone.
+        const liveImg = document.getElementById("payment-qr-image") as HTMLImageElement | null;
+        const clonedImg = cloned.querySelector("#payment-qr-image") as HTMLImageElement | null;
+        if (liveImg?.src && clonedImg) {
+          clonedImg.src = liveImg.src;
+        }
+        const liveCanvas = document.getElementById("payment-qr-canvas") as HTMLCanvasElement | null;
         const clonedCanvas = cloned.querySelector("#payment-qr-canvas") as HTMLCanvasElement | null;
-        if (live && clonedCanvas) {
+        if (liveCanvas && clonedCanvas) {
           try {
             const ctx = clonedCanvas.getContext("2d");
-            ctx?.drawImage(live, 0, 0);
+            ctx?.drawImage(liveCanvas, 0, 0);
           } catch {
-            /* clone may already be an <img> from deepCloneBasic */
+            /* clone may already be an <img> */
           }
         }
         cloned.classList.add("pdf-exporting");
@@ -177,7 +159,7 @@ export function InvoicePdfActions({ autoPdf = false, filename }: InvoicePdfActio
   useEffect(() => {
     // Always clear leftovers from a previous failed export (e.g. soft navigation).
     cleanupPdfExportArtifacts();
-    void renderPaymentQr();
+    void waitForPaymentQr();
   }, []);
 
   useEffect(() => {
@@ -225,11 +207,16 @@ export function InvoicePdfActions({ autoPdf = false, filename }: InvoicePdfActio
     }
   }
 
-  function onPrint() {
+  async function onPrint() {
     cleanupPdfExportArtifacts();
     setError(null);
-    setBusy(false);
-    window.print();
+    setBusy(true);
+    try {
+      await prepareInvoiceForExport();
+      window.print();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -237,7 +224,7 @@ export function InvoicePdfActions({ autoPdf = false, filename }: InvoicePdfActio
       <Button type="button" onClick={() => void onDownload()} disabled={busy}>
         {busy ? "Generuji PDF…" : "Stáhnout PDF"}
       </Button>
-      <Button type="button" variant="outline" onClick={onPrint} disabled={busy}>
+      <Button type="button" variant="outline" onClick={() => void onPrint()} disabled={busy}>
         Tisknout
       </Button>
       {error ? <p className="text-sm text-red-700">{error}</p> : null}

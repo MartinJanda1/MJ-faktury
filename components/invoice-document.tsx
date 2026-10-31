@@ -1,3 +1,4 @@
+import { PaymentQr } from "@/components/payment-qr";
 import { buildSpaydString, resolveIban } from "@/lib/payment-qr";
 import { formatDate, formatQuantity } from "@/lib/money";
 import type { Company, Invoice } from "@/lib/types";
@@ -12,10 +13,12 @@ function formatCzechAmount(amount: number): string {
 }
 
 function accountLabel(company: Company): string {
-  if (company.bankAccount && company.bankCode) {
-    return `${company.bankAccount}/${company.bankCode}`;
-  }
-  return company.bankAccount || "";
+  const account = (company.bankAccount || "").trim();
+  const code = (company.bankCode || "").trim();
+  // Avoid doubling bank code when account already contains „číslo/kód“.
+  if (account.includes("/")) return account;
+  if (account && code) return `${account}/${code}`;
+  return account;
 }
 
 function cityLine(zip: string, city: string): string {
@@ -26,8 +29,16 @@ function isTransferPayment(method: string): boolean {
   const normalized = method
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-  return !normalized || normalized.includes("prevod");
+    .toLowerCase()
+    .trim();
+  if (!normalized) return true;
+  return (
+    normalized.includes("prevod") ||
+    normalized.includes("transfer") ||
+    normalized.includes("bank") ||
+    normalized === "qr" ||
+    normalized.includes("spayd")
+  );
 }
 
 export type InvoiceDocumentProps = {
@@ -292,18 +303,7 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
         </div>
         <div className="section-body">
           <div className="recap-row">
-            {qrVisible ? (
-              <div id="payment-qr-wrap" className="payment-qr-frame" data-qr-host>
-                <div className="payment-qr-body">
-                  <canvas id="payment-qr-canvas" width={120} height={120} aria-hidden="true" />
-                </div>
-                <div className="payment-qr-caption">
-                  <span className="payment-qr-line" aria-hidden="true" />
-                  <span className="payment-qr-label">QR platba</span>
-                  <span className="payment-qr-line" aria-hidden="true" />
-                </div>
-              </div>
-            ) : null}
+            {qrVisible && spayd ? <PaymentQr spayd={spayd} /> : null}
             <div className="recap-totals">
               {hideVat ? null : (
                 <>

@@ -133,7 +133,52 @@
 }
 
 @media print {
-  .no-print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #000 !important;
+  }
+
+  .no-print,
+  [data-print-hide],
+  aside,
+  nav,
+  header,
+  .app-shell-chrome {
     display: none !important;
+  }
+
+  /*
+   * Hide page chrome (AppShell, toolbars, status rows). Only the invoice article
+   * must appear — visibility trick keeps layout ancestors from forcing blank pages.
+   */
+  body * {
+    visibility: hidden !important;
+  }
+
+  #invoice-document,
+  #invoice-document *,
+  .invoice-document,
+  .invoice-document * {
+    visibility: visible !important;
+  }
+
+  #invoice-document,
+  .invoice-document {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 190mm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
   }
 }

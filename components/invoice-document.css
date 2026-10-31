@@ -396,8 +396,11 @@
   padding: 6px;
 }
 
-.invoice-document .payment-qr-body canvas {
+.invoice-document .payment-qr-body canvas,
+.invoice-document .payment-qr-body img {
   display: block;
+  width: 120px;
+  height: 120px;
 }
 
 .invoice-document .payment-qr-caption {
@@ -456,19 +459,32 @@
 
 @media print {
   .invoice-document-shell {
-    background: #fff;
-    padding: 0;
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
 
   .invoice-document {
-    width: 100%;
-    min-height: 0;
-    padding: 0;
-    box-shadow: none;
+    width: 100% !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
   }
 
-  .no-print {
+  .no-print,
+  [data-print-hide] {
     display: none !important;
+    visibility: hidden !important;
+  }
+
+  .invoice-document .payment-qr-frame,
+  .invoice-document .payment-qr-frame * {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .invoice-document .payment-bar,

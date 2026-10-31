@@ -24,7 +24,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   return (
     <div className="min-h-screen">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col bg-[oklch(0.28_0.04_158)] text-[oklch(0.96_0.01_95)] md:flex">
+      <aside
+        className="app-shell-chrome no-print fixed inset-y-0 left-0 z-30 hidden w-60 flex-col bg-[oklch(0.28_0.04_158)] text-[oklch(0.96_0.01_95)] md:flex"
+        data-print-hide
+      >
         <div className="px-5 pt-6 pb-5">
           <Link href="/" className="block">
             <span className="font-heading text-2xl tracking-tight">Faktura</span>
@@ -54,7 +57,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="md:pl-60">
-        <div className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur md:hidden">
+        <div
+          className="app-shell-chrome no-print sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur md:hidden"
+          data-print-hide
+        >
           <div className="flex items-center justify-between px-4 py-3">
             <Link href="/" className="font-heading text-xl">
               Faktura
