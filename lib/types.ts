@@ -1,6 +1,7 @@
 export type InvoiceKind = "issued" | "proforma" | "credit_note";
 export type InvoiceStatus = "draft" | "issued" | "partial" | "paid" | "cancelled";
-export type InvoiceLayout = "classic" | "idoklad";
+/** Print/PDF visual style. Stored on invoice for legacy export; output uses print-time choice. */
+export type InvoiceLayout = "classic" | "modern";
 export type RecordSource = "manual" | "idoklad" | "csv" | "isdoc";
 
 export type SupplierDraft = {
@@ -111,7 +112,7 @@ export type Invoice = Omit<InvoiceDraft, "items" | "supplier" | "customerExterna
 };
 
 export type Company = SupplierDraft & {
-  /** Footer line on the invoice document (classic + iDoklad). */
+  /** Footer line on the invoice document. */
   footerNote: string;
   idokladClientId: string;
   hasIdokladSecret: boolean;

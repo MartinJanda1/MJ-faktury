@@ -5,8 +5,25 @@ export const DEFAULT_LAYOUT: InvoiceLayout = "classic";
 
 export const PAYMENT_METHODS = ["Převodem", "Hotově", "Kartou", "Dobírkou", "Zápočtem"] as const;
 
+export const INVOICE_LAYOUTS: { value: InvoiceLayout; label: string }[] = [
+  { value: "classic", label: "Klasická" },
+  { value: "modern", label: "Nový styl" },
+];
+
+/** localStorage key for last print/PDF layout preference. */
+export const INVOICE_LAYOUT_STORAGE_KEY = "mj-faktura-invoice-layout";
+
 export function normalizeLayout(value: unknown): InvoiceLayout {
-  return value === "idoklad" ? "idoklad" : "classic";
+  const raw = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  // Legacy "idoklad" maps to the new modern style.
+  if (raw === "modern" || raw === "idoklad") return "modern";
+  return "classic";
+}
+
+export function layoutLabel(layout: InvoiceLayout): string {
+  return INVOICE_LAYOUTS.find((row) => row.value === layout)?.label ?? "Klasická";
 }
 
 export function normalizePaymentMethod(value: unknown): string {

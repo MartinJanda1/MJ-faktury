@@ -3,14 +3,65 @@
 import { useEffect, useRef, useState } from "react";
 import { waitForPaymentQr } from "@/components/payment-qr";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DEFAULT_LAYOUT,
+  INVOICE_LAYOUT_STORAGE_KEY,
+  INVOICE_LAYOUTS,
+  layoutLabel,
+  normalizeLayout,
+} from "@/lib/invoice-fields";
+import type { InvoiceLayout } from "@/lib/types";
 
 type InvoicePdfActionsProps = {
   /** When true (e.g. ?pdf=1), start PDF download after QR is ready. */
   autoPdf?: boolean;
   filename?: string;
+  /** Layout from URL (?layout=) when present. */
+  initialLayout?: InvoiceLayout;
+  /** Persist choice to URL query on the print page. */
+  syncUrl?: boolean;
+  /**
+   * When true (print page), restore last layout from localStorage if URL has none.
+   * Detail preview keeps classic until the user picks a style.
+   */
+  useStoredPreference?: boolean;
 };
 
 const PDF_TIMEOUT_MS = 25_000;
+
+function readStoredLayout(): InvoiceLayout | null {
+  try {
+    const raw = window.localStorage.getItem(INVOICE_LAYOUT_STORAGE_KEY);
+    return raw ? normalizeLayout(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredLayout(layout: InvoiceLayout): void {
+  try {
+    window.localStorage.setItem(INVOICE_LAYOUT_STORAGE_KEY, layout);
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+function applyLayoutToDocument(layout: InvoiceLayout): void {
+  const invoice = document.getElementById("invoice-document");
+  if (!invoice) return;
+  invoice.classList.remove("layout-classic", "layout-modern", "layout-idoklad");
+  invoice.classList.add(`layout-${layout}`);
+  invoice.setAttribute("data-layout", layout);
+}
+
+function syncLayoutQuery(layout: InvoiceLayout): void {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("layout") === layout) return;
+  url.searchParams.set("layout", layout);
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
 
 /** html2pdf leaves a full-viewport `.html2pdf__overlay` when html2canvas fails — remove it. */
 function cleanupPdfExportArtifacts(): void {
@@ -149,10 +200,17 @@ function safeFilename(raw: string | undefined): string {
   return `faktura-${number}.pdf`;
 }
 
-export function InvoicePdfActions({ autoPdf = false, filename }: InvoicePdfActionsProps) {
+export function InvoicePdfActions({
+  autoPdf = false,
+  filename,
+  initialLayout,
+  syncUrl = false,
+}: InvoicePdfActionsProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
+  const [layout, setLayout] = useState<InvoiceLayout>(normalizeLayout(initialLayout ?? DEFAULT_LAYOUT));
+  const [layoutReady, setLayoutReady] = useState(false);
   const resolvedName = safeFilename(filename);
   const autoStarted = useRef(false);
 
@@ -163,8 +221,19 @@ export function InvoicePdfActions({ autoPdf = false, filename }: InvoicePdfActio
   }, []);
 
   useEffect(() => {
+    const fromUrl = initialLayout ? normalizeLayout(initialLayout) : null;
+    const fromStore = readStoredLayout();
+    const next = fromUrl ?? fromStore ?? DEFAULT_LAYOUT;
+    setLayout(next);
+    applyLayoutToDocument(next);
+    writeStoredLayout(next);
+    if (syncUrl) syncLayoutQuery(next);
+    setLayoutReady(true);
+  }, [initialLayout, syncUrl]);
+
+  useEffect(() => {
     let cancelled = false;
-    if (!autoPdf || autoStarted.current) return;
+    if (!autoPdf || !layoutReady || autoStarted.current) return;
     autoStarted.current = true;
 
     void (async () => {
@@ -188,13 +257,22 @@ export function InvoicePdfActions({ autoPdf = false, filename }: InvoicePdfActio
       cancelled = true;
       cleanupPdfExportArtifacts();
     };
-  }, [autoPdf, resolvedName]);
+  }, [autoPdf, layoutReady, resolvedName]);
+
+  function onLayoutChange(value: string | null) {
+    const next = normalizeLayout(value);
+    setLayout(next);
+    applyLayoutToDocument(next);
+    writeStoredLayout(next);
+    if (syncUrl) syncLayoutQuery(next);
+  }
 
   async function onDownload() {
     setError(null);
     setHint(null);
     setBusy(true);
     try {
+      applyLayoutToDocument(layout);
       await downloadPdfWithHtml2pdf(resolvedName);
     } catch {
       cleanupPdfExportArtifacts();
@@ -212,6 +290,7 @@ export function InvoicePdfActions({ autoPdf = false, filename }: InvoicePdfActio
     setError(null);
     setBusy(true);
     try {
+      applyLayoutToDocument(layout);
       await prepareInvoiceForExport();
       window.print();
     } finally {
@@ -221,6 +300,21 @@ export function InvoicePdfActions({ autoPdf = false, filename }: InvoicePdfActio
 
   return (
     <div className="no-print flex flex-wrap items-center gap-3" aria-busy={busy || undefined}>
+      <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span className="whitespace-nowrap">Vzhled</span>
+        <Select value={layout} onValueChange={onLayoutChange}>
+          <SelectTrigger className="h-9 w-[9.5rem] bg-background" aria-label="Vzhled dokladu">
+            <SelectValue>{(value) => (value ? layoutLabel(value as InvoiceLayout) : null)}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {INVOICE_LAYOUTS.map((row) => (
+              <SelectItem key={row.value} value={row.value}>
+                {row.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </label>
       <Button type="button" onClick={() => void onDownload()} disabled={busy}>
         {busy ? "Generuji PDF…" : "Stáhnout PDF"}
       </Button>

@@ -32,7 +32,10 @@ export default function HelpPage() {
               Údaje firmy (účet, IBAN, SWIFT, poznámka „Nejsme plátci DPH“, patička) nastavíte v{" "}
               <Link href="/nastaveni" className="text-foreground underline-offset-2 hover:underline">Nastavení</Link>.
             </li>
-            <li>PDF stáhnete z detailu dokladu nebo ze stránky tisku (včetně QR platby převodem).</li>
+            <li>
+              PDF stáhnete z detailu dokladu nebo ze stránky tisku (včetně QR platby převodem). Vzhled
+              (Klasická / Nový styl) zvolíte přímo před tiskem nebo stažením PDF.
+            </li>
             <li>
               Koncept, vystavené, částečně uhrazené i po splatnosti jdou upravit. Uhrazený doklad je jen ke čtení —
               před úpravou zrušte úhradu. Storno nejdřív zrušte, teprve pak upravujte.

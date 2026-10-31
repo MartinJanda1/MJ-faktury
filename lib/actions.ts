@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
-import { normalizeLayout, normalizeOrderNumber, normalizePaymentMethod } from "./invoice-fields";
+import { DEFAULT_LAYOUT, normalizeOrderNumber, normalizePaymentMethod } from "./invoice-fields";
 import { todayPrague } from "./money";
 import {
   deleteCustomer,
@@ -148,7 +148,8 @@ export async function saveInvoiceAction(_previous: { error: string }, formData: 
         specificSymbol: String(formData.get("specificSymbol") ?? ""),
         paymentMethod: normalizePaymentMethod(formData.get("paymentMethod")),
         orderNumber: normalizeOrderNumber(formData.get("orderNumber")),
-        layout: normalizeLayout(formData.get("layout")),
+        // Visual layout is chosen at print/PDF time, not stored per edit.
+        layout: DEFAULT_LAYOUT,
         customerExternalId: null,
         customerName,
         customerIco: String(formData.get("customerIco") ?? ""),

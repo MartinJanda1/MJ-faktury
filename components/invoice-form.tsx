@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { saveInvoiceAction } from "@/lib/actions";
-import { DEFAULT_LAYOUT, DEFAULT_PAYMENT_METHOD, PAYMENT_METHODS } from "@/lib/invoice-fields";
+import { DEFAULT_PAYMENT_METHOD, PAYMENT_METHODS } from "@/lib/invoice-fields";
 import { formatMoney, lineTotals, parseAmount, todayPrague } from "@/lib/money";
 import { kindLabel, statusLabel } from "@/lib/status";
-import type { Company, Customer, Invoice, InvoiceKind, InvoiceLayout, InvoiceStatus } from "@/lib/types";
+import type { Company, Customer, Invoice, InvoiceKind, InvoiceStatus } from "@/lib/types";
 import { isNonVatPayer } from "@/lib/vat";
 
 type ItemState = {
@@ -84,7 +84,6 @@ export function InvoiceForm({
   const [taxDate, setTaxDate] = useState(invoice?.taxDate || today);
   const [status, setStatus] = useState<InvoiceStatus>(invoice?.status ?? "issued");
   const [kind, setKind] = useState<InvoiceKind>(invoice?.kind ?? "issued");
-  const [layout, setLayout] = useState<InvoiceLayout>(invoice?.layout ?? DEFAULT_LAYOUT);
   const [paymentMethod, setPaymentMethod] = useState(invoice?.paymentMethod || DEFAULT_PAYMENT_METHOD);
   const [notVatPayer, setNotVatPayer] = useState(isNonVatPayer(company));
   const [items, setItems] = useState<ItemState[]>(
@@ -178,7 +177,6 @@ export function InvoiceForm({
       <input type="hidden" name="items" value={payload} />
       <input type="hidden" name="status" value={status} />
       <input type="hidden" name="kind" value={kind} />
-      <input type="hidden" name="layout" value={layout} />
       <input type="hidden" name="paymentMethod" value={paymentMethod} />
       {state.error ? (
         <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
@@ -201,19 +199,6 @@ export function InvoiceForm({
                 <SelectItem value="issued">{kindLabel("issued")}</SelectItem>
                 <SelectItem value="proforma">{kindLabel("proforma")}</SelectItem>
                 <SelectItem value="credit_note">{kindLabel("credit_note")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Vzhled">
-            <Select value={layout} onValueChange={(value) => setLayout((value as InvoiceLayout) || "classic")}>
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {(value) => (value === "idoklad" ? "iDoklad" : value === "classic" ? "Klasická" : null)}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="classic">Klasická</SelectItem>
-                <SelectItem value="idoklad">iDoklad</SelectItem>
               </SelectContent>
             </Select>
           </Field>

@@ -502,177 +502,328 @@
   }
 }
 
-/* iDoklad layout — čistý černobílý vzhled bez barevných pruhů */
-.invoice-document.layout-idoklad {
-  padding: 10mm 14mm 12mm;
-  font-size: 13px;
-  line-height: 1.45;
+/* Nový styl — moderní minimal: hairline, hierarchie, neutrální tóny */
+.invoice-document.layout-modern {
+  --modern-rule: #d6d6d6;
+  --modern-rule-strong: #1a1a1a;
+  --modern-muted: #5c5c5c;
+  --modern-soft: #f7f7f7;
+  --modern-accent: #0a9aab;
+
+  padding: 12mm 14mm 14mm;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #1a1a1a;
 }
 
-.invoice-document.layout-idoklad .inv-section {
+.invoice-document.layout-modern .inv-section {
   grid-template-columns: 1fr;
   gap: 0;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0;
 }
 
-.invoice-document.layout-idoklad .section-label {
+.invoice-document.layout-modern .section-label {
   display: none;
 }
 
-.invoice-document.layout-idoklad .ident-columns {
+.invoice-document.layout-modern .inv-section-ident {
   margin-bottom: 0;
-  gap: 0 2.5rem;
-  border: 0;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--modern-rule);
+}
+
+.invoice-document.layout-modern .ident-columns {
+  margin-bottom: 0;
+  gap: 1.25rem 2rem;
   padding-bottom: 0;
 }
 
-.invoice-document.layout-idoklad .invoice-header-row {
+.invoice-document.layout-modern .invoice-header-row {
   grid-column: 1 / -1;
   grid-row: 1;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem;
-  padding-left: 0;
-  font-size: 22px;
-  font-weight: 400;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+  padding: 0 0 0.85rem;
+  border-bottom: 2px solid var(--modern-rule-strong);
 }
 
-.invoice-document.layout-idoklad .invoice-title {
-  font-size: 22px;
+.invoice-document.layout-modern .invoice-title {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: #111;
 }
 
-.invoice-document.layout-idoklad .invoice-number-box {
+.invoice-document.layout-modern .invoice-number-box {
   min-width: 0;
   border: 0;
   background: transparent;
-  padding: 0 0.25rem;
-  text-align: left;
-  font-size: 22px;
-  font-weight: 400;
+  padding: 0;
+  text-align: right;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--modern-accent);
 }
 
-.invoice-document.layout-idoklad .supplier-top {
+.invoice-document.layout-modern .supplier-top {
   grid-column: 1;
   grid-row: 2;
-  border-right: 0;
-  padding-right: 0;
+  border-right: 1px solid var(--modern-rule);
+  padding-right: 1.5rem;
 }
 
-.invoice-document.layout-idoklad .customer-details {
+.invoice-document.layout-modern .customer-details {
   grid-column: 2;
   grid-row: 2;
+  padding-left: 0.25rem;
+}
+
+.invoice-document.layout-modern .party-heading {
+  margin: 0 0 0.5rem;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--modern-muted);
+}
+
+.invoice-document.layout-modern .party-name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.invoice-document.layout-modern .party-line,
+.invoice-document.layout-modern .party-ids,
+.invoice-document.layout-modern .contact-row {
+  font-size: 12px;
+  color: #333;
+}
+
+.invoice-document.layout-modern .supplier-vat-note {
+  margin-top: 0.55rem;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--modern-muted);
+}
+
+.invoice-document.layout-modern .contact-block-title {
+  margin: 0.75rem 0 0.3rem;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--modern-muted);
+}
+
+.invoice-document.layout-modern .contact-row {
+  grid-template-columns: 3.25rem 1fr;
+  gap: 0.35rem;
+}
+
+.invoice-document.layout-modern .inv-section-payment {
+  margin-top: 1rem;
+  margin-bottom: 0;
+}
+
+.invoice-document.layout-modern .payment-bar {
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem 1.5rem;
+  background: transparent;
+  color: #1a1a1a;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--modern-rule);
+}
+
+.invoice-document.layout-modern .payment-col + .payment-col {
+  border-left: 1px solid var(--modern-rule);
+  padding-left: 1.25rem;
+}
+
+.invoice-document.layout-modern .payment-line {
+  margin-bottom: 0.2rem;
+  flex-wrap: wrap;
+  white-space: normal;
+  font-size: 12px;
+  color: #1a1a1a;
+}
+
+.invoice-document.layout-modern .payment-line > span:first-child {
+  color: var(--modern-muted);
+}
+
+.invoice-document.layout-modern .payment-line.indent {
   padding-left: 0;
 }
 
-.invoice-document.layout-idoklad .party-name {
-  font-weight: 400;
+.invoice-document.layout-modern .inv-section-dates {
+  margin-top: 0;
+  margin-bottom: 1.1rem;
 }
 
-.invoice-document.layout-idoklad .supplier-vat-note {
-  margin-top: 0.5rem;
-  color: #404040;
-}
-
-.invoice-document.layout-idoklad .inv-footer-note {
-  margin-top: 2rem;
+.invoice-document.layout-modern .inv-dates-row {
+  gap: 0.65rem 1.75rem;
   border-top: 0;
-  padding-top: 0;
+  padding: 0.85rem 0 0;
+  font-size: 12px;
 }
 
-.invoice-document.layout-idoklad .inv-footer-note p {
-  color: #525252;
+.invoice-document.layout-modern .date-item span {
+  color: var(--modern-muted);
 }
 
-.invoice-document.layout-idoklad .contact-block-title {
+.invoice-document.layout-modern .date-item strong {
+  font-weight: 600;
+}
+
+.invoice-document.layout-modern .layout-classic-extra {
   display: none;
 }
 
-.invoice-document.layout-idoklad .contact-row {
-  grid-template-columns: auto 1fr;
-}
-
-.invoice-document.layout-idoklad .payment-bar {
-  grid-template-columns: 1fr;
-  gap: 0.125rem;
-  background: transparent;
-  color: #171717;
-  padding: 0;
-}
-
-.invoice-document.layout-idoklad .payment-col {
-  display: contents;
-}
-
-.invoice-document.layout-idoklad .payment-line {
-  margin-bottom: 0;
-  flex-wrap: wrap;
-  color: #171717;
-}
-
-.invoice-document.layout-idoklad .inv-section-dates {
+.invoice-document.layout-modern .inv-section-items {
   margin-top: 0.25rem;
-  margin-bottom: 1rem;
 }
 
-.invoice-document.layout-idoklad .items-table thead th {
-  border: 1px solid #a3a3a3;
-  background: #f5f5f5;
-  padding: 0.5rem;
+.invoice-document.layout-modern .items-intro {
+  margin: 0 0 0.65rem;
   font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: var(--modern-muted);
 }
 
-.invoice-document.layout-idoklad .items-table td {
-  border: 1px solid #d4d4d4;
-  background: #fff;
-  padding: 0.5rem;
+.invoice-document.layout-modern .items-table thead th {
+  border: 0;
+  border-bottom: 1.5px solid var(--modern-rule-strong);
+  background: transparent;
+  padding: 0.45rem 0.4rem;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--modern-muted);
 }
 
-.invoice-document.layout-idoklad .recap-bar {
-  background: #f5f5f5;
-  color: #171717;
-  padding: 0.75rem 1rem;
+.invoice-document.layout-modern .items-table td {
+  border: 0;
+  border-bottom: 1px solid var(--modern-rule);
+  background: transparent;
+  padding: 0.55rem 0.4rem;
+  font-size: 12.5px;
 }
 
-.invoice-document.layout-idoklad .recap-bar strong {
-  color: #171717;
+.invoice-document.layout-modern .items-table tbody tr:last-child td {
+  border-bottom-color: var(--modern-rule-strong);
 }
 
-.invoice-document.layout-idoklad .section-recap {
-  margin-top: 0.5rem;
+.invoice-document.layout-modern .section-recap {
+  margin-top: 1.35rem;
 }
 
-.pdf-exporting .invoice-document.layout-idoklad .payment-bar,
-.pdf-exporting .invoice-document.layout-idoklad .recap-bar,
-.invoice-document.layout-idoklad.pdf-exporting .payment-bar,
-.invoice-document.layout-idoklad.pdf-exporting .recap-bar {
-  background-color: #f5f5f5 !important;
+.invoice-document.layout-modern .recap-line {
+  font-size: 12px;
+  color: var(--modern-muted);
 }
 
-.pdf-exporting .invoice-document.layout-idoklad .payment-bar,
-.pdf-exporting .invoice-document.layout-idoklad .payment-bar *,
-.pdf-exporting .invoice-document.layout-idoklad .recap-bar,
-.pdf-exporting .invoice-document.layout-idoklad .recap-bar *,
-.invoice-document.layout-idoklad.pdf-exporting .payment-bar,
-.invoice-document.layout-idoklad.pdf-exporting .payment-bar *,
-.invoice-document.layout-idoklad.pdf-exporting .recap-bar,
-.invoice-document.layout-idoklad.pdf-exporting .recap-bar * {
-  color: #171717 !important;
+.invoice-document.layout-modern .recap-line strong {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.invoice-document.layout-modern .recap-bar {
+  background: transparent;
+  color: #111;
+  padding: 0.65rem 0 0;
+  margin-top: 0.35rem;
+  border-top: 2px solid var(--modern-rule-strong);
+  gap: 1rem;
+  font-size: 13px;
+}
+
+.invoice-document.layout-modern .recap-bar strong {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #111;
+}
+
+.invoice-document.layout-modern .inv-footer-note {
+  margin-top: 2rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--modern-rule);
+  text-align: left;
+}
+
+.invoice-document.layout-modern .inv-footer-note p {
+  font-size: 11px;
+  color: var(--modern-muted);
+}
+
+.pdf-exporting .invoice-document.layout-modern .payment-bar,
+.pdf-exporting .invoice-document.layout-modern .recap-bar,
+.invoice-document.layout-modern.pdf-exporting .payment-bar,
+.invoice-document.layout-modern.pdf-exporting .recap-bar {
+  background-color: transparent !important;
+}
+
+.pdf-exporting .invoice-document.layout-modern .payment-bar,
+.pdf-exporting .invoice-document.layout-modern .payment-bar *,
+.pdf-exporting .invoice-document.layout-modern .recap-bar,
+.pdf-exporting .invoice-document.layout-modern .recap-bar *,
+.invoice-document.layout-modern.pdf-exporting .payment-bar,
+.invoice-document.layout-modern.pdf-exporting .payment-bar *,
+.invoice-document.layout-modern.pdf-exporting .recap-bar,
+.invoice-document.layout-modern.pdf-exporting .recap-bar * {
+  color: inherit !important;
+}
+
+.pdf-exporting .invoice-document.layout-modern .recap-bar,
+.pdf-exporting .invoice-document.layout-modern .recap-bar *,
+.invoice-document.layout-modern.pdf-exporting .recap-bar,
+.invoice-document.layout-modern.pdf-exporting .recap-bar * {
+  color: #111 !important;
 }
 
 @media print {
-  .invoice-document.layout-idoklad .payment-bar,
-  .invoice-document.layout-idoklad .recap-bar {
-    background-color: #f5f5f5 !important;
+  .invoice-document.layout-modern .payment-bar,
+  .invoice-document.layout-modern .recap-bar {
+    background-color: transparent !important;
   }
 
-  .invoice-document.layout-idoklad .payment-bar,
-  .invoice-document.layout-idoklad .payment-bar *,
-  .invoice-document.layout-idoklad .recap-bar,
-  .invoice-document.layout-idoklad .recap-bar * {
-    color: #171717 !important;
+  .invoice-document.layout-modern .payment-bar,
+  .invoice-document.layout-modern .payment-bar *,
+  .invoice-document.layout-modern .recap-bar,
+  .invoice-document.layout-modern .recap-bar * {
+    color: inherit !important;
+  }
+
+  .invoice-document.layout-modern .recap-bar,
+  .invoice-document.layout-modern .recap-bar * {
+    color: #111 !important;
+  }
+
+  .invoice-document.layout-modern .invoice-number-box {
+    color: var(--modern-accent) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+@media (max-width: 860px) {
+  .invoice-document.layout-modern .payment-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .invoice-document.layout-modern .payment-col + .payment-col {
+    border-left: 0;
+    border-top: 1px solid var(--modern-rule);
+    padding-left: 0;
+    padding-top: 0.65rem;
   }
 }
 

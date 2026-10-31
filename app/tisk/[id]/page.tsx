@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { InvoiceDocument } from "@/components/invoice-document";
 import { InvoicePdfActions } from "@/components/invoice-pdf-actions";
+import { DEFAULT_LAYOUT, normalizeLayout } from "@/lib/invoice-fields";
 import { getCompany, getInvoice } from "@/lib/queries";
 
 export default async function PrintPage({
@@ -10,6 +11,8 @@ export default async function PrintPage({
   const { id } = await params;
   const query = await searchParams;
   const autoPdf = (Array.isArray(query.pdf) ? query.pdf[0] : query.pdf) === "1";
+  const layoutRaw = Array.isArray(query.layout) ? query.layout[0] : query.layout;
+  const layout = layoutRaw ? normalizeLayout(layoutRaw) : DEFAULT_LAYOUT;
   const [invoice, company] = await Promise.all([getInvoice(id), getCompany()]);
 
   if (!invoice) {
@@ -32,9 +35,15 @@ export default async function PrintPage({
         >
           ← Zpět na doklad
         </Link>
-        <InvoicePdfActions autoPdf={autoPdf} filename={invoice.number} />
+        <InvoicePdfActions
+          autoPdf={autoPdf}
+          filename={invoice.number}
+          initialLayout={layoutRaw ? layout : undefined}
+          syncUrl
+          useStoredPreference
+        />
       </div>
-      <InvoiceDocument invoice={invoice} company={company} />
+      <InvoiceDocument invoice={invoice} company={company} layout={layout} />
     </div>
   );
 }

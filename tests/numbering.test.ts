@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { isInvoiceEditable, isInvoiceReadOnly, suggestNextNumber, variableSymbolFromNumber } from "../lib/status";
-import { withInvoiceDefaults } from "../lib/invoice-fields";
+import { normalizeLayout, withInvoiceDefaults } from "../lib/invoice-fields";
 import type { InvoiceStatus } from "../lib/types";
 
 test("suggestNextNumber continues series-year format", () => {
@@ -24,6 +24,14 @@ test("withInvoiceDefaults fills missing invoice fields", () => {
   assert.equal(normalized.paymentMethod, "Převodem");
   assert.equal(normalized.orderNumber, "");
   assert.equal(normalized.layout, "classic");
+});
+
+test("normalizeLayout maps modern and legacy idoklad", () => {
+  assert.equal(normalizeLayout("classic"), "classic");
+  assert.equal(normalizeLayout("modern"), "modern");
+  assert.equal(normalizeLayout("idoklad"), "modern");
+  assert.equal(normalizeLayout(""), "classic");
+  assert.equal(normalizeLayout(undefined), "classic");
 });
 
 test("unpaid invoice statuses stay editable; paid and cancelled are read-only", () => {

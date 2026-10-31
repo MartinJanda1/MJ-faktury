@@ -1,9 +1,9 @@
 import QRCode from "qrcode";
 import { PaymentQr, PaymentQrMissing } from "@/components/payment-qr";
-import { DEFAULT_PAYMENT_METHOD } from "@/lib/invoice-fields";
+import { DEFAULT_LAYOUT, DEFAULT_PAYMENT_METHOD, normalizeLayout } from "@/lib/invoice-fields";
 import { buildSpaydString, isTransferPayment, resolveIban } from "@/lib/payment-qr";
 import { formatDate, formatQuantity } from "@/lib/money";
-import type { Company, Invoice } from "@/lib/types";
+import type { Company, Invoice, InvoiceLayout } from "@/lib/types";
 import { isNonVatPayer } from "@/lib/vat";
 import "./invoice-document.css";
 
@@ -45,16 +45,18 @@ async function buildQrDataUrl(spayd: string): Promise<string | null> {
 export type InvoiceDocumentProps = {
   invoice: Invoice;
   company: Company;
+  /** Visual style for print/PDF. Defaults to classic; print toolbar can override. */
+  layout?: InvoiceLayout;
   /** Hide QR canvas host when SPAYD cannot be built (still reserves structure when true). */
   showQr?: boolean;
 };
 
-export async function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentProps) {
+export async function InvoiceDocument({ invoice, company, layout: layoutProp, showQr }: InvoiceDocumentProps) {
   const account = accountLabel(company);
   const iban = resolveIban(account, company.iban);
   const hideVat = isNonVatPayer(company);
   const amount = hideVat ? invoice.totalNet || invoice.totalGross : invoice.totalGross;
-  const layout = invoice.layout === "idoklad" ? "idoklad" : "classic";
+  const layout = normalizeLayout(layoutProp ?? DEFAULT_LAYOUT);
   const paymentMethod = (invoice.paymentMethod || "").trim() || DEFAULT_PAYMENT_METHOD;
   const wantsQr = showQr !== false && isTransferPayment(paymentMethod) && amount > 0;
   const spayd = wantsQr

@@ -119,13 +119,15 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
         </div>
 
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">Náhled dokladu</p>
+          <p className="text-sm text-muted-foreground">
+            Náhled (klasická). Vzhled pro tisk/PDF zvolíte při tisku.
+          </p>
           <InvoicePdfActions filename={invoice.number} />
         </div>
       </div>
 
       <div className="invoice-document-shell overflow-x-auto rounded-xl ring-1 ring-foreground/10">
-        <InvoiceDocument invoice={invoice} company={company} />
+        <InvoiceDocument invoice={invoice} company={company} layout="classic" />
       </div>
     </div>
   );
