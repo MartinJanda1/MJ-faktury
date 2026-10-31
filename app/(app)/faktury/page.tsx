@@ -5,7 +5,6 @@ import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDate, formatMoney, todayPrague } from "@/lib/money";
 import { getInvoiceFilterMeta, getInvoices } from "@/lib/queries";
-import { kindLabel } from "@/lib/status";
 import { cn } from "cn";
 
 export const metadata = { title: "Faktury" };
@@ -18,13 +17,6 @@ const statuses = [
   ["partial", "Částečně"],
   ["draft", "Koncepty"],
   ["cancelled", "Storno"],
-] as const;
-
-const kinds = [
-  ["all", "Všechny typy"],
-  ["issued", "Faktury"],
-  ["proforma", "Zálohy"],
-  ["credit_note", "Dobropisy"],
 ] as const;
 
 const months = [
@@ -47,18 +39,17 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
   const params = await searchParams;
   const query = text(params.q);
   const status = text(params.stav) || "all";
-  const kind = text(params.druh) || "all";
   const year = text(params.rok);
   const month = text(params.mesic);
   const from = text(params.od);
   const to = text(params.do);
   const [{ invoices, total }, meta] = await Promise.all([
-    getInvoices({ query, status, kind, year, month, from, to }),
+    getInvoices({ query, status, year, month, from, to }),
     getInvoiceFilterMeta(),
   ]);
   const currentYear = todayPrague().slice(0, 4);
   const years = meta.years.length ? meta.years : [currentYear];
-  const filter = { q: query, stav: status, druh: kind, rok: year, mesic: month, od: from, do: to };
+  const filter = { q: query, stav: status, rok: year, mesic: month, od: from, do: to };
 
   return (
     <div>
@@ -108,7 +99,6 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
           <Input type="date" name="do" defaultValue={to} />
         </label>
         <input type="hidden" name="stav" value={status} />
-        <input type="hidden" name="druh" value={kind} />
         <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-6">
           <button type="submit" className={buttonVariants()}>
             Filtrovat
@@ -119,7 +109,7 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
         </div>
       </form>
 
-      <div className="mb-3 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         {statuses.map(([value, label]) => (
           <Link
             key={value}
@@ -127,20 +117,6 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
             className={cn(
               "rounded-full px-3 py-1 text-sm",
               status === value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-            )}
-          >
-            {label}
-          </Link>
-        ))}
-      </div>
-      <div className="mb-4 flex flex-wrap gap-2">
-        {kinds.map(([value, label]) => (
-          <Link
-            key={value}
-            href={href({ ...filter, druh: value })}
-            className={cn(
-              "rounded-full px-3 py-1 text-sm",
-              kind === value ? "bg-foreground text-background" : "bg-muted/70 text-muted-foreground",
             )}
           >
             {label}
@@ -172,10 +148,7 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
               className="grid gap-1 border-b border-border px-4 py-3 last:border-b-0 md:grid-cols-[8rem_1fr_8rem_8rem_7rem] md:items-center md:gap-3"
             >
               <span className="font-medium">{invoice.number}</span>
-              <span className="truncate text-sm">
-                {invoice.customerName || "Bez odběratele"}
-                <span className="ml-2 text-muted-foreground">{kindLabel(invoice.kind)}</span>
-              </span>
+              <span className="truncate text-sm">{invoice.customerName || "Bez odběratele"}</span>
               <span className="text-sm text-muted-foreground">{formatDate(invoice.issueDate)}</span>
               <StatusBadge status={invoice.status} dueDate={invoice.dueDate} paidDate={invoice.paidDate} />
               <span className="text-sm md:text-right">{formatMoney(invoice.totalGross, invoice.currency)}</span>
@@ -199,7 +172,6 @@ function text(value: string | string[] | undefined) {
 function href(params: {
   q: string;
   stav: string;
-  druh: string;
   rok: string;
   mesic: string;
   od: string;
@@ -208,7 +180,6 @@ function href(params: {
   const search = new URLSearchParams();
   if (params.q) search.set("q", params.q);
   if (params.stav && params.stav !== "all") search.set("stav", params.stav);
-  if (params.druh && params.druh !== "all") search.set("druh", params.druh);
   if (params.rok) search.set("rok", params.rok);
   if (params.mesic) search.set("mesic", params.mesic);
   if (params.od) search.set("od", params.od);
