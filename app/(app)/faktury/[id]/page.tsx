@@ -52,7 +52,7 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
             <>
               <StatusBadge status={invoice.status} dueDate={invoice.dueDate} paidDate={invoice.paidDate} />
               <Link href={`/tisk/${invoice.id}?pdf=1`} className={buttonVariants({ variant: "outline" })}>
-                PDF / tisk
+                PDF
               </Link>
               {readOnly ? null : (
                 <Link href={`/faktury/${invoice.id}/upravit`} className={buttonVariants({ variant: "outline" })}>
@@ -120,7 +120,7 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
 
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            Náhled (klasická). Vzhled pro tisk/PDF zvolíte při tisku.
+            Náhled (klasická). Vzhled PDF zvolíte před stažením.
           </p>
           <InvoicePdfActions filename={invoice.number} />
         </div>
