@@ -15,6 +15,19 @@ export function displayStatus(
   return "issued";
 }
 
+/**
+ * Unpaid working statuses stay editable. Only paid (and cancelled) are locked.
+ * `overdue` is display-only for issued invoices — those remain editable.
+ * Do not key this off `paidDate` alone or `displayStatus()`: that would be too broad.
+ */
+export function isInvoiceEditable(invoice: { status: InvoiceStatus }): boolean {
+  return invoice.status === "draft" || invoice.status === "issued" || invoice.status === "partial";
+}
+
+export function isInvoiceReadOnly(invoice: { status: InvoiceStatus }): boolean {
+  return !isInvoiceEditable(invoice);
+}
+
 export function statusLabel(status: DisplayStatus): string {
   switch (status) {
     case "draft":

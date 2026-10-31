@@ -15,7 +15,7 @@ import {
   restoreInvoiceAction,
 } from "@/lib/actions";
 import { getCompany, getInvoice } from "@/lib/queries";
-import { kindLabel } from "@/lib/status";
+import { isInvoiceReadOnly, kindLabel } from "@/lib/status";
 
 export async function generateMetadata({ params }: PageProps<"/faktury/[id]">) {
   const { id } = await params;
@@ -39,7 +39,7 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
 
   const isPaid = invoice.status === "paid";
   const isCancelled = invoice.status === "cancelled";
-  const readOnly = isPaid;
+  const readOnly = isInvoiceReadOnly(invoice);
 
   return (
     <div>
@@ -61,9 +61,14 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
           </>
         }
       />
-      {readOnly ? (
+      {isPaid ? (
         <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
           Uhrazený doklad — pouze ke čtení. Pro úpravu nejprve zrušte úhradu.
+        </p>
+      ) : null}
+      {isCancelled ? (
+        <p className="mb-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          Stornovaný doklad — pouze ke čtení. Pro úpravu nejprve zrušte storno.
         </p>
       ) : null}
       <div className="mb-4 flex flex-wrap gap-2">

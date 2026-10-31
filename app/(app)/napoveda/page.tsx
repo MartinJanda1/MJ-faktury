@@ -30,7 +30,10 @@ export default function HelpPage() {
           <ul className="list-disc space-y-1.5 pl-5 text-muted-foreground">
             <li>Platební údaje firmy nastavíte v <Link href="/nastaveni" className="text-foreground underline-offset-2 hover:underline">Nastavení</Link> — IBAN doplní účet a SWIFT.</li>
             <li>PDF stáhnete z detailu dokladu nebo ze stránky tisku (včetně QR platby převodem).</li>
-            <li>Uhrazený doklad je jen ke čtení — před úpravou zrušte úhradu.</li>
+            <li>
+              Koncept, vystavené, částečně uhrazené i po splatnosti jdou upravit. Uhrazený doklad je jen ke čtení —
+              před úpravou zrušte úhradu. Storno nejdřív zrušte, teprve pak upravujte.
+            </li>
           </ul>
         </section>
 

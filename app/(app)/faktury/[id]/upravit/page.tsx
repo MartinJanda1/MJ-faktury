@@ -4,7 +4,7 @@ import { MissingRecord } from "@/components/missing-record";
 import { PageHeader } from "@/components/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { getCustomers, getInvoice, getNextNumber } from "@/lib/queries";
-import { suggestNextNumber } from "@/lib/status";
+import { isInvoiceEditable, suggestNextNumber } from "@/lib/status";
 
 export const metadata = { title: "Upravit doklad" };
 
@@ -21,13 +21,18 @@ export default async function EditInvoicePage({ params }: PageProps<"/faktury/[i
       />
     );
   }
-  if (invoice.status === "paid") {
+  if (!isInvoiceEditable(invoice)) {
+    const paid = invoice.status === "paid";
     return (
       <div>
         <PageHeader
           eyebrow="Doklady"
           title={invoice.number}
-          description="Uhrazený doklad je jen ke čtení. Před úpravou zrušte úhradu."
+          description={
+            paid
+              ? "Uhrazený doklad je jen ke čtení. Před úpravou zrušte úhradu."
+              : "Stornovaný doklad je jen ke čtení. Před úpravou zrušte storno."
+          }
           action={
             <Link href={`/faktury/${invoice.id}`} className={buttonVariants()}>
               Zpět na doklad
@@ -36,7 +41,9 @@ export default async function EditInvoicePage({ params }: PageProps<"/faktury/[i
         />
         <div className="rounded-xl bg-card px-5 py-8 ring-1 ring-foreground/10">
           <p className="text-sm text-muted-foreground">
-            Stejně jako v původní MJ Faktura zůstávají vyřízené / uhrazené doklady bez možnosti přímé editace, aby se neměnila historie plateb.
+            {paid
+              ? "Stejně jako v původní MJ Faktura zůstávají uhrazené doklady bez možnosti přímé editace, aby se neměnila historie plateb. Koncepty, vystavené, částečně uhrazené i po splatnosti upravit lze."
+              : "Stornovaný doklad se neupravuje přímo — nejdřív zrušte storno na detailu dokladu."}
           </p>
         </div>
       </div>

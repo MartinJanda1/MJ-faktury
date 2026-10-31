@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { suggestNextNumber, variableSymbolFromNumber } from "../lib/status";
+import { isInvoiceEditable, isInvoiceReadOnly, suggestNextNumber, variableSymbolFromNumber } from "../lib/status";
 import { withInvoiceDefaults } from "../lib/invoice-fields";
+import type { InvoiceStatus } from "../lib/types";
 
 test("suggestNextNumber continues series-year format", () => {
   assert.equal(suggestNextNumber(["1/2026", "2/2026"], "2026-04-01"), "3/2026");
@@ -23,4 +24,17 @@ test("withInvoiceDefaults fills missing invoice fields", () => {
   assert.equal(normalized.paymentMethod, "Převodem");
   assert.equal(normalized.orderNumber, "");
   assert.equal(normalized.layout, "classic");
+});
+
+test("unpaid invoice statuses stay editable; paid and cancelled are read-only", () => {
+  const editable: InvoiceStatus[] = ["draft", "issued", "partial"];
+  const locked: InvoiceStatus[] = ["paid", "cancelled"];
+  for (const status of editable) {
+    assert.equal(isInvoiceEditable({ status }), true, status);
+    assert.equal(isInvoiceReadOnly({ status }), false, status);
+  }
+  for (const status of locked) {
+    assert.equal(isInvoiceEditable({ status }), false, status);
+    assert.equal(isInvoiceReadOnly({ status }), true, status);
+  }
 });

@@ -16,7 +16,7 @@ import {
   setInvoiceStatus,
   upsertInvoice,
 } from "./persist";
-import { addDaysIso, suggestNextNumber, variableSymbolFromNumber } from "./status";
+import { addDaysIso, isInvoiceEditable, suggestNextNumber, variableSymbolFromNumber } from "./status";
 import type { InvoiceKind, InvoiceStatus, ItemDraft } from "./types";
 
 function refresh() {
@@ -111,8 +111,13 @@ export async function saveInvoiceAction(_previous: { error: string }, formData: 
   const invoiceId = String(formData.get("id") ?? "") || null;
   if (invoiceId) {
     const existing = await getInvoiceRow(invoiceId);
-    if (existing?.status === "paid") {
-      return { error: "Uhrazený doklad nelze upravovat. Nejprve zrušte úhradu." };
+    if (existing && !isInvoiceEditable(existing)) {
+      return {
+        error:
+          existing.status === "cancelled"
+            ? "Stornovaný doklad nelze upravovat. Nejprve zrušte storno."
+            : "Uhrazený doklad nelze upravovat. Nejprve zrušte úhradu.",
+      };
     }
   }
   let result: { id: string };
