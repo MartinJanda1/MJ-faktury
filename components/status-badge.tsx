@@ -16,14 +16,23 @@ export function StatusBadge({
   status,
   dueDate,
   paidDate,
+  size = "sm",
 }: {
   status: InvoiceStatus;
   dueDate: string;
   paidDate: string | null;
+  size?: "sm" | "lg";
 }) {
   const shown = displayStatus({ status, dueDate, paidDate });
   return (
-    <Badge variant="outline" className={cn("border-transparent", tones[shown])}>
+    <Badge
+      variant="outline"
+      className={cn(
+        "border-transparent",
+        tones[shown],
+        size === "lg" && "h-auto rounded-full px-3.5 py-1.5 text-base font-semibold tracking-wide",
+      )}
+    >
       {statusLabel(shown)}
     </Badge>
   );

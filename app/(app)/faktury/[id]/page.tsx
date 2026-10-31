@@ -47,13 +47,14 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
         <PageHeader
           eyebrow={kindLabel(invoice.kind)}
           title={invoice.number}
-          description={invoice.description || invoice.customerName}
           action={
             <>
-              <StatusBadge status={invoice.status} dueDate={invoice.dueDate} paidDate={invoice.paidDate} />
-              <Link href={`/tisk/${invoice.id}?pdf=1`} className={buttonVariants({ variant: "outline" })}>
-                PDF
-              </Link>
+              <StatusBadge
+                status={invoice.status}
+                dueDate={invoice.dueDate}
+                paidDate={invoice.paidDate}
+                size="lg"
+              />
               {readOnly ? null : (
                 <Link href={`/faktury/${invoice.id}/upravit`} className={buttonVariants({ variant: "outline" })}>
                   Upravit
@@ -63,7 +64,7 @@ export default async function InvoicePage({ params }: PageProps<"/faktury/[id]">
           }
         />
         {isPaid ? (
-          <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-base font-medium text-emerald-900">
             Uhrazený doklad — pouze ke čtení. Pro úpravu nejprve zrušte úhradu.
           </p>
         ) : null}
