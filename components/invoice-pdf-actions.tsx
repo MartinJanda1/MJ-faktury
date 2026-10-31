@@ -205,6 +205,7 @@ export function InvoicePdfActions({
   filename,
   initialLayout,
   syncUrl = false,
+  useStoredPreference = false,
 }: InvoicePdfActionsProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -221,15 +222,15 @@ export function InvoicePdfActions({
   }, []);
 
   useEffect(() => {
-    const fromUrl = initialLayout ? normalizeLayout(initialLayout) : null;
-    const fromStore = readStoredLayout();
-    const next = fromUrl ?? fromStore ?? DEFAULT_LAYOUT;
+    const fromProp = initialLayout ? normalizeLayout(initialLayout) : null;
+    const fromStore = useStoredPreference ? readStoredLayout() : null;
+    const next = fromProp ?? fromStore ?? DEFAULT_LAYOUT;
     setLayout(next);
     applyLayoutToDocument(next);
-    writeStoredLayout(next);
+    if (useStoredPreference || fromProp) writeStoredLayout(next);
     if (syncUrl) syncLayoutQuery(next);
     setLayoutReady(true);
-  }, [initialLayout, syncUrl]);
+  }, [initialLayout, syncUrl, useStoredPreference]);
 
   useEffect(() => {
     let cancelled = false;
