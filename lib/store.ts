@@ -12,7 +12,19 @@ export type StoreDocument = {
 };
 
 const BLOB_PATHNAME = "faktura-db.json";
-const localPath = () => process.env.FAKTURA_DB_PATH || path.join(process.cwd(), "data", "faktura.json");
+
+function localFile() {
+  if (process.env.FAKTURA_DB_PATH) return process.env.FAKTURA_DB_PATH;
+  // On Vercel without Blob the writable area is /tmp (ephemeral per instance).
+  if (process.env.VERCEL) return path.join("/tmp", "faktura.json");
+  return path.join(process.cwd(), "data", "faktura.json");
+}
+
+export function storageMode(): "blob" | "tmp" | "local" {
+  if (useBlob()) return "blob";
+  if (process.env.VERCEL) return "tmp";
+  return "local";
+}
 
 function emptyDocument(): StoreDocument {
   return {
@@ -47,7 +59,8 @@ function useBlob() {
 
 async function readLocal(): Promise<StoreDocument> {
   try {
-    const raw = await fs.readFile(localPath(), "utf8");
+    const file = localFile();
+    const raw = await fs.readFile(/*turbopackIgnore: true*/ file, "utf8");
     return JSON.parse(raw) as StoreDocument;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyDocument();
@@ -56,11 +69,11 @@ async function readLocal(): Promise<StoreDocument> {
 }
 
 async function writeLocal(doc: StoreDocument) {
-  const file = localPath();
-  await fs.mkdir(path.dirname(file), { recursive: true });
+  const file = localFile();
+  await fs.mkdir(/*turbopackIgnore: true*/ path.dirname(file), { recursive: true });
   const temp = `${file}.${process.pid}.tmp`;
-  await fs.writeFile(temp, JSON.stringify(doc), "utf8");
-  await fs.rename(temp, file);
+  await fs.writeFile(/*turbopackIgnore: true*/ temp, JSON.stringify(doc), "utf8");
+  await fs.rename(/*turbopackIgnore: true*/ temp, file);
 }
 
 async function readBlob(): Promise<StoreDocument> {

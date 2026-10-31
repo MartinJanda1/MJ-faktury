@@ -10,16 +10,16 @@ import type { ImportCounts } from "@/lib/types";
 
 export function ImportPanel({ clientId, hasSecret }: { clientId: string; hasSecret: boolean }) {
   return (
-    <Tabs defaultValue="api">
+    <Tabs defaultValue="soubor">
       <TabsList>
-        <TabsTrigger value="api">API iDokladu</TabsTrigger>
-        <TabsTrigger value="soubor">Soubor</TabsTrigger>
+        <TabsTrigger value="soubor">CSV / Excel / ISDOC</TabsTrigger>
+        <TabsTrigger value="api">API (placené)</TabsTrigger>
       </TabsList>
-      <TabsContent value="api" className="pt-4">
-        <ApiImport clientId={clientId} hasSecret={hasSecret} />
-      </TabsContent>
       <TabsContent value="soubor" className="pt-4">
         <FileImport />
+      </TabsContent>
+      <TabsContent value="api" className="pt-4">
+        <ApiImport clientId={clientId} hasSecret={hasSecret} />
       </TabsContent>
     </Tabs>
   );
@@ -77,7 +77,7 @@ function ApiImport({ clientId, hasSecret }: { clientId: string; hasSecret: boole
   return (
     <div className="grid gap-4">
       <p className="text-sm leading-6 text-muted-foreground">
-        V iDokladu otevřete Nastavení → Aplikace → API a vygenerujte Client ID a Client Secret. Import jen čte faktury, zálohové faktury, dobropisy a adresář. Přihlašovací heslo k webu sem nepište.
+        API obvykle vyžaduje placený tarif iDokladu. Pokud klíč nemáte, použijte záložku CSV / Excel. Heslo k webu sem nepatří.
       </p>
       <label className="grid gap-1.5 text-sm">
         <span className="font-medium">Client ID</span>
@@ -135,7 +135,7 @@ function FileImport() {
   return (
     <form onSubmit={submit} className="grid gap-4">
       <p className="text-sm leading-6 text-muted-foreground">
-        Nahrajte export seznamu faktur nebo kontaktů ve formátu CSV nebo XLSX, jednotlivý ISDOC, nebo ZIP s více ISDOC soubory. Seznam z iDokladu přenese hlavičku a součet. Položky jsou v ISDOC a v API.
+        Nahrajte CSV nebo XLSX ze seznamu faktur a klidně i zvlášť export kontaktů. Můžete nahrát více souborů najednou. ISDOC nebo ZIP s ISDOC soubory přinese i položky dokladu.
       </p>
       <Input name="files" type="file" multiple accept=".csv,.txt,.xlsx,.xlsm,.xml,.isdoc,.zip,text/csv,application/xml" required />
       <div>

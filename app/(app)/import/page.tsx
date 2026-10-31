@@ -11,11 +11,23 @@ export default async function ImportPage() {
       <PageHeader
         eyebrow="Přenos"
         title="Import z iDokladu"
-        description="Heslo k účtu na idoklad.cz sem nepatří. Data stáhnete buď API klíči, které si vygenerujete vy, nebo souborem, který si z iDokladu uložíte sami."
+        description="API klíč není potřeba. Stačí export CSV nebo Excelu, který si stáhnete sami v iDokladu, a nahrání sem."
       />
+      <ol className="mb-6 max-w-3xl list-decimal space-y-2 pl-5 text-sm leading-6 text-muted-foreground">
+        <li>
+          V iDokladu otevřete <strong className="font-medium text-foreground">Prodej → Faktury vydané</strong> (případně i Kontakty).
+        </li>
+        <li>
+          Klikněte na <strong className="font-medium text-foreground">Export</strong>, vyberte CSV nebo XLSX a všechny sloupce, které chcete přenést.
+        </li>
+        <li>Soubor nahrajte níže. Opakovaný import aktualizuje doklady se stejným číslem.</li>
+      </ol>
       <div className="max-w-3xl rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-5">
         <ImportPanel clientId={company.idokladClientId} hasSecret={company.hasIdokladSecret} />
       </div>
+      <p className="mt-4 max-w-3xl text-sm text-muted-foreground">
+        Export seznamu přenese hlavičku faktury, odběratele a součty. Položkový rozpis v CSV ze seznamu obvykle není — u každé faktury vznikne souhrnná položka. Pokud budete chtít i jednotlivé řádky, exportujte ISDOC z detailu dokladu.
+      </p>
     </div>
   );
 }
