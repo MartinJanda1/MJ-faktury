@@ -1,7 +1,17 @@
 export type InvoiceKind = "issued" | "proforma" | "credit_note";
 export type InvoiceStatus = "draft" | "issued" | "partial" | "paid" | "cancelled";
 /** Print/PDF visual style. Stored on invoice for legacy export; output uses print-time choice. */
-export type InvoiceLayout = "classic" | "modern";
+export type InvoiceLayout =
+  | "classic"
+  | "modern"
+  | "elegant"
+  | "contrast"
+  | "compact"
+  | "minimal"
+  | "editorial"
+  | "studio"
+  | "accounting"
+  | "soft";
 export type RecordSource = "manual" | "idoklad" | "csv" | "isdoc";
 
 export type SupplierDraft = {

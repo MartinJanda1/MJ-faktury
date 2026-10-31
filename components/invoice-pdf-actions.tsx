@@ -8,6 +8,7 @@ import {
   DEFAULT_LAYOUT,
   INVOICE_LAYOUT_STORAGE_KEY,
   INVOICE_LAYOUTS,
+  layoutClassNames,
   layoutLabel,
   normalizeLayout,
 } from "@/lib/invoice-fields";
@@ -50,7 +51,7 @@ function writeStoredLayout(layout: InvoiceLayout): void {
 function applyLayoutToDocument(layout: InvoiceLayout): void {
   const invoice = document.getElementById("invoice-document");
   if (!invoice) return;
-  invoice.classList.remove("layout-classic", "layout-modern", "layout-idoklad");
+  invoice.classList.remove(...layoutClassNames());
   invoice.classList.add(`layout-${layout}`);
   invoice.setAttribute("data-layout", layout);
 }
@@ -304,7 +305,7 @@ export function InvoicePdfActions({
       <label className="flex items-center gap-2 text-sm text-muted-foreground">
         <span className="whitespace-nowrap">Vzhled</span>
         <Select value={layout} onValueChange={onLayoutChange}>
-          <SelectTrigger className="h-9 w-[9.5rem] bg-background" aria-label="Vzhled dokladu">
+          <SelectTrigger className="h-9 w-[11.5rem] bg-background" aria-label="Vzhled dokladu">
             <SelectValue>{(value) => (value ? layoutLabel(value as InvoiceLayout) : null)}</SelectValue>
           </SelectTrigger>
           <SelectContent>

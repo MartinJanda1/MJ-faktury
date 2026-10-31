@@ -34,7 +34,7 @@ export default function HelpPage() {
             </li>
             <li>
               PDF stáhnete z detailu dokladu nebo ze stránky tisku (včetně QR platby převodem). Vzhled
-              (Klasická / Nový styl) zvolíte přímo před tiskem nebo stažením PDF.
+              (Klasická, Moderní, Elegantní, Kontrastní a další) zvolíte přímo před tiskem nebo stažením PDF.
             </li>
             <li>
               Koncept, vystavené, částečně uhrazené i po splatnosti jdou upravit. Uhrazený doklad je jen ke čtení —

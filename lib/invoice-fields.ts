@@ -7,23 +7,39 @@ export const PAYMENT_METHODS = ["Převodem", "Hotově", "Kartou", "Dobírkou", "
 
 export const INVOICE_LAYOUTS: { value: InvoiceLayout; label: string }[] = [
   { value: "classic", label: "Klasická" },
-  { value: "modern", label: "Nový styl" },
+  { value: "modern", label: "Moderní" },
+  { value: "elegant", label: "Elegantní" },
+  { value: "contrast", label: "Kontrastní" },
+  { value: "compact", label: "Kompaktní" },
+  { value: "minimal", label: "Minimal" },
+  { value: "editorial", label: "Magazín" },
+  { value: "studio", label: "Studio" },
+  { value: "accounting", label: "Účetní" },
+  { value: "soft", label: "Soft" },
 ];
 
 /** localStorage key for last print/PDF layout preference. */
 export const INVOICE_LAYOUT_STORAGE_KEY = "mj-faktura-invoice-layout";
 
+const LAYOUT_SET = new Set<string>(INVOICE_LAYOUTS.map((row) => row.value));
+
 export function normalizeLayout(value: unknown): InvoiceLayout {
   const raw = String(value ?? "")
     .trim()
     .toLowerCase();
-  // Legacy "idoklad" maps to the new modern style.
-  if (raw === "modern" || raw === "idoklad") return "modern";
+  // Legacy "idoklad" maps to the modern style.
+  if (raw === "idoklad") return "modern";
+  if (LAYOUT_SET.has(raw)) return raw as InvoiceLayout;
   return "classic";
 }
 
 export function layoutLabel(layout: InvoiceLayout): string {
   return INVOICE_LAYOUTS.find((row) => row.value === layout)?.label ?? "Klasická";
+}
+
+/** CSS class names for every known layout (incl. legacy aliases). */
+export function layoutClassNames(): string[] {
+  return [...INVOICE_LAYOUTS.map((row) => `layout-${row.value}`), "layout-idoklad"];
 }
 
 export function normalizePaymentMethod(value: unknown): string {

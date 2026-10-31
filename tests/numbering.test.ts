@@ -26,12 +26,21 @@ test("withInvoiceDefaults fills missing invoice fields", () => {
   assert.equal(normalized.layout, "classic");
 });
 
-test("normalizeLayout maps modern and legacy idoklad", () => {
+test("normalizeLayout maps modern, gallery layouts, and legacy idoklad", () => {
   assert.equal(normalizeLayout("classic"), "classic");
   assert.equal(normalizeLayout("modern"), "modern");
   assert.equal(normalizeLayout("idoklad"), "modern");
+  assert.equal(normalizeLayout("elegant"), "elegant");
+  assert.equal(normalizeLayout("contrast"), "contrast");
+  assert.equal(normalizeLayout("compact"), "compact");
+  assert.equal(normalizeLayout("minimal"), "minimal");
+  assert.equal(normalizeLayout("editorial"), "editorial");
+  assert.equal(normalizeLayout("studio"), "studio");
+  assert.equal(normalizeLayout("accounting"), "accounting");
+  assert.equal(normalizeLayout("soft"), "soft");
   assert.equal(normalizeLayout(""), "classic");
   assert.equal(normalizeLayout(undefined), "classic");
+  assert.equal(normalizeLayout("unknown"), "classic");
 });
 
 test("unpaid invoice statuses stay editable; paid and cancelled are read-only", () => {
