@@ -1,17 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArcElement,
-  BarElement,
-  CategoryScale,
-  Chart,
-  Legend,
-  LinearScale,
-  Tooltip,
-  type Chart as ChartInstance,
-} from "chart.js";
+import { useMemo, useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
+import { CustomerDonut, RevenueBars } from "@/components/stats-charts";
 import {
   availableYears,
   buildCustomerOptions,
@@ -27,12 +18,6 @@ import {
   type StatsStatusFilter,
 } from "@/lib/invoice-stats";
 import { cn } from "cn";
-
-Chart.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
-
-const BRAND = "#00b5c8";
-const BRAND_FILL = "rgba(0, 181, 200, 0.75)";
-const PALETTE = ["#0d9488", "#0284c7", "#7c3aed", "#d97706", "#e11d48", "#16a34a"];
 
 function defaultFilter(invoices: StatsInvoice[]): StatsFilter {
   const years = availableYears(invoices);
@@ -53,115 +38,6 @@ export function StatsDashboard({ invoices }: { invoices: StatsInvoice[] }) {
   const summary = useMemo(() => summarize(filtered), [filtered]);
   const series = useMemo(() => chartSeries(filtered, filter), [filtered, filter]);
   const customerSeries = useMemo(() => seriesByCustomer(filtered), [filtered]);
-  const revenueRef = useRef<HTMLCanvasElement>(null);
-  const customerRef = useRef<HTMLCanvasElement>(null);
-  const revenueChart = useRef<ChartInstance | null>(null);
-  const customerChart = useRef<ChartInstance | null>(null);
-
-  useEffect(() => {
-    if (!filter.year && years[0]) {
-      setFilter((current) => ({ ...current, year: String(years[0]) }));
-    }
-  }, [filter.year, years]);
-
-  useEffect(() => {
-    if (!revenueRef.current) return;
-    revenueChart.current?.destroy();
-    revenueChart.current = new Chart(revenueRef.current, {
-      type: "bar",
-      data: {
-        labels: series.points.map((point) => point.label),
-        datasets: [
-          {
-            label: "Obrat (Kč)",
-            data: series.points.map((point) => Math.round(point.total)),
-            backgroundColor: BRAND_FILL,
-            borderColor: BRAND,
-            borderWidth: 1,
-            borderRadius: 4,
-            maxBarThickness: series.mode === "years" ? 48 : 36,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label(ctx) {
-                const point = series.points[ctx.dataIndex];
-                return [
-                  `Obrat: ${formatStatsMoney(Number(ctx.parsed.y))} Kč`,
-                  `Faktur: ${point?.count ?? 0}`,
-                  `Hodin: ${formatStatsHours(point?.hours ?? 0)}`,
-                ];
-              },
-            },
-          },
-        },
-        scales: {
-          x: { grid: { display: false } },
-          y: {
-            ticks: {
-              callback: (value) => formatStatsMoney(Number(value)),
-            },
-          },
-        },
-      },
-    });
-    return () => {
-      revenueChart.current?.destroy();
-      revenueChart.current = null;
-    };
-  }, [series]);
-
-  useEffect(() => {
-    if (!customerRef.current) return;
-    customerChart.current?.destroy();
-    if (!customerSeries.length) {
-      customerChart.current = null;
-      return;
-    }
-    customerChart.current = new Chart(customerRef.current, {
-      type: "doughnut",
-      data: {
-        labels: customerSeries.map((row) => row.label),
-        datasets: [
-          {
-            data: customerSeries.map((row) => Math.round(row.total)),
-            backgroundColor: customerSeries.map((_, index) => PALETTE[index % PALETTE.length]),
-            borderWidth: 0,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: "bottom",
-            labels: { boxWidth: 12, padding: 14 },
-          },
-          tooltip: {
-            callbacks: {
-              label(ctx) {
-                const row = customerSeries[ctx.dataIndex];
-                const sum = customerSeries.reduce((total, item) => total + item.total, 0);
-                const pct = row && sum ? Math.round((row.total / sum) * 100) : 0;
-                return `${ctx.label}: ${formatStatsMoney(Number(ctx.parsed))} Kč (${pct} %)`;
-              },
-            },
-          },
-        },
-      },
-    });
-    return () => {
-      customerChart.current?.destroy();
-      customerChart.current = null;
-    };
-  }, [customerSeries]);
 
   function update(partial: Partial<StatsFilter>) {
     setFilter((current) => {
@@ -283,22 +159,8 @@ export function StatsDashboard({ invoices }: { invoices: StatsInvoice[] }) {
       </section>
 
       <section className="mb-6 grid gap-6 lg:grid-cols-5">
-        <div className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 lg:col-span-3">
-          <h2 className="mb-4 text-sm font-semibold">{series.title}</h2>
-          <div className="relative h-72">
-            <canvas ref={revenueRef} aria-label="Graf obratu" />
-          </div>
-        </div>
-        <div className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 lg:col-span-2">
-          <h2 className="mb-4 text-sm font-semibold">Podíl odběratelů</h2>
-          <div className="relative h-72">
-            {customerSeries.length === 0 ? (
-              <p className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">Žádná data</p>
-            ) : (
-              <canvas ref={customerRef} aria-label="Graf odběratelů" />
-            )}
-          </div>
-        </div>
+        <RevenueBars points={series.points} title={series.title} />
+        <CustomerDonut points={customerSeries} />
       </section>
 
       <section className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
