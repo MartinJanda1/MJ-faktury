@@ -311,6 +311,11 @@
   text-align: right;
 }
 
+.invoice-document .col-vat {
+  width: 55px;
+  text-align: right;
+}
+
 .invoice-document .section-recap {
   margin-top: 1.25rem;
 }
@@ -330,8 +335,31 @@
   gap: 1rem;
 }
 
-.invoice-document .recap-row .recap-bar {
+.invoice-document .recap-totals {
+  display: grid;
+  gap: 0.35rem;
   margin-left: auto;
+  justify-items: end;
+}
+
+.invoice-document .recap-row:has(.payment-qr-frame) .recap-totals {
+  margin-left: 0;
+}
+
+.invoice-document .recap-line {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.8125rem;
+  color: #333;
+}
+
+.invoice-document .recap-line strong {
+  font-weight: 600;
+}
+
+.invoice-document .recap-row .recap-bar {
+  margin-left: 0;
 }
 
 .invoice-document .recap-row:has(.payment-qr-frame) .recap-bar {

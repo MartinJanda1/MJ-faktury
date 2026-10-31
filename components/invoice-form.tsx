@@ -1,16 +1,17 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
-import { AresLookup } from "@/components/ares-lookup";
+import Link from "next/link";
+import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { saveInvoiceAction } from "@/lib/actions";
 import { DEFAULT_LAYOUT, DEFAULT_PAYMENT_METHOD, PAYMENT_METHODS } from "@/lib/invoice-fields";
 import { formatMoney, lineTotals, parseAmount, todayPrague } from "@/lib/money";
-import type { Customer, Invoice, InvoiceKind, InvoiceLayout, InvoiceStatus } from "@/lib/types";
+import { kindLabel, statusLabel } from "@/lib/status";
+import type { Company, Customer, Invoice, InvoiceKind, InvoiceLayout, InvoiceStatus } from "@/lib/types";
+import { isNonVatPayer } from "@/lib/vat";
 
 type ItemState = {
   key: string;
@@ -21,13 +22,13 @@ type ItemState = {
   vatRate: string;
 };
 
-const emptyItem = (): ItemState => ({
+const emptyItem = (notVatPayer: boolean): ItemState => ({
   key: crypto.randomUUID(),
   name: "",
   quantity: "1",
   unit: "ks",
   unitPrice: "",
-  vatRate: "21",
+  vatRate: notVatPayer ? "0" : "21",
 });
 
 function plusDays(iso: string, days: number) {
@@ -37,19 +38,39 @@ function plusDays(iso: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function customerSummary(customer: {
+  name: string;
+  ico: string;
+  dic: string;
+  street: string;
+  city: string;
+  zip: string;
+  country: string;
+  email: string;
+}) {
+  const address = [customer.street, [customer.zip, customer.city].filter(Boolean).join(" "), customer.country]
+    .filter(Boolean)
+    .join(", ");
+  const ids = [customer.ico ? `IČO ${customer.ico}` : "", customer.dic ? `DIČ ${customer.dic}` : ""]
+    .filter(Boolean)
+    .join(" · ");
+  return { address, ids, email: customer.email };
+}
+
 export function InvoiceForm({
   customers,
+  company,
   invoice,
   suggestedNumber,
 }: {
   customers: Customer[];
+  company: Company;
   invoice?: Invoice;
   suggestedNumber: string;
 }) {
   const [state, action, pending] = useActionState(saveInvoiceAction, { error: "" });
   const today = todayPrague();
   const [customerId, setCustomerId] = useState(invoice?.customerId ?? "");
-  const [customerQuery, setCustomerQuery] = useState("");
   const [customerName, setCustomerName] = useState(invoice?.customerName ?? "");
   const [customerIco, setCustomerIco] = useState(invoice?.customerIco ?? "");
   const [customerDic, setCustomerDic] = useState(invoice?.customerDic ?? "");
@@ -65,6 +86,7 @@ export function InvoiceForm({
   const [kind, setKind] = useState<InvoiceKind>(invoice?.kind ?? "issued");
   const [layout, setLayout] = useState<InvoiceLayout>(invoice?.layout ?? DEFAULT_LAYOUT);
   const [paymentMethod, setPaymentMethod] = useState(invoice?.paymentMethod || DEFAULT_PAYMENT_METHOD);
+  const [notVatPayer, setNotVatPayer] = useState(isNonVatPayer(company));
   const [items, setItems] = useState<ItemState[]>(
     invoice?.items.length
       ? invoice.items.map((item) => ({
@@ -73,22 +95,27 @@ export function InvoiceForm({
           quantity: String(item.quantity),
           unit: item.unit,
           unitPrice: String(item.unitPrice),
-          vatRate: String(item.vatRate),
+          vatRate: String(isNonVatPayer(company) ? 0 : item.vatRate),
         }))
-      : [emptyItem()],
+      : [emptyItem(isNonVatPayer(company))],
   );
 
-  const filtered = useMemo(() => {
-    const query = customerQuery.trim().toLowerCase();
-    const list = query
-      ? customers.filter((customer) => `${customer.name} ${customer.ico} ${customer.city}`.toLowerCase().includes(query))
-      : customers;
-    return list.slice(0, 8);
-  }, [customerQuery, customers]);
+  const selectedCustomer = customers.find((customer) => customer.id === customerId) ?? null;
+  const preview = customerSummary({
+    name: customerName,
+    ico: customerIco,
+    dic: customerDic,
+    street: customerStreet,
+    city: customerCity,
+    zip: customerZip,
+    country: customerCountry,
+    email: customerEmail,
+  });
 
   const totals = items.reduce(
     (sum, item) => {
-      const line = lineTotals(parseAmount(item.quantity), parseAmount(item.unitPrice), Number(item.vatRate) || 0);
+      const vatRate = notVatPayer ? 0 : Number(item.vatRate) || 0;
+      const line = lineTotals(parseAmount(item.quantity), parseAmount(item.unitPrice), vatRate);
       return {
         net: sum.net + line.totalNet,
         vat: sum.vat + line.totalVat,
@@ -104,11 +131,16 @@ export function InvoiceForm({
       quantity: parseAmount(item.quantity),
       unit: item.unit || "ks",
       unitPrice: parseAmount(item.unitPrice),
-      vatRate: Number(item.vatRate) || 0,
+      vatRate: notVatPayer ? 0 : Number(item.vatRate) || 0,
     })),
   );
 
-  function pickCustomer(customer: Customer) {
+  function pickCustomer(id: string) {
+    const customer = customers.find((row) => row.id === id);
+    if (!customer) {
+      setCustomerId("");
+      return;
+    }
     setCustomerId(customer.id);
     setCustomerName(customer.name);
     setCustomerIco(customer.ico);
@@ -118,17 +150,31 @@ export function InvoiceForm({
     setCustomerZip(customer.zip);
     setCustomerCountry(customer.country || "Česká republika");
     setCustomerEmail(customer.email);
-    setCustomerQuery("");
   }
 
   function updateItem(key: string, patch: Partial<ItemState>) {
     setItems((current) => current.map((item) => (item.key === key ? { ...item, ...patch } : item)));
   }
 
+  function setNotVatPayerFlag(checked: boolean) {
+    setNotVatPayer(checked);
+    if (checked) {
+      setItems((current) => current.map((item) => ({ ...item, vatRate: "0" })));
+    }
+  }
+
   return (
     <form action={action} className="grid gap-6">
       <input type="hidden" name="id" value={invoice?.id ?? ""} />
       <input type="hidden" name="customerId" value={customerId} />
+      <input type="hidden" name="customerName" value={customerName} />
+      <input type="hidden" name="customerIco" value={customerIco} />
+      <input type="hidden" name="customerDic" value={customerDic} />
+      <input type="hidden" name="customerStreet" value={customerStreet} />
+      <input type="hidden" name="customerCity" value={customerCity} />
+      <input type="hidden" name="customerZip" value={customerZip} />
+      <input type="hidden" name="customerCountry" value={customerCountry} />
+      <input type="hidden" name="customerEmail" value={customerEmail} />
       <input type="hidden" name="items" value={payload} />
       <input type="hidden" name="status" value={status} />
       <input type="hidden" name="kind" value={kind} />
@@ -149,19 +195,21 @@ export function InvoiceForm({
           <Field label="Druh">
             <Select value={kind} onValueChange={(value) => setKind((value as InvoiceKind) || "issued")}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>{(value) => (value ? kindLabel(value as InvoiceKind) : null)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="issued">Faktura</SelectItem>
-                <SelectItem value="proforma">Zálohová faktura</SelectItem>
-                <SelectItem value="credit_note">Dobropis</SelectItem>
+                <SelectItem value="issued">{kindLabel("issued")}</SelectItem>
+                <SelectItem value="proforma">{kindLabel("proforma")}</SelectItem>
+                <SelectItem value="credit_note">{kindLabel("credit_note")}</SelectItem>
               </SelectContent>
             </Select>
           </Field>
           <Field label="Vzhled">
             <Select value={layout} onValueChange={(value) => setLayout((value as InvoiceLayout) || "classic")}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(value) => (value === "idoklad" ? "iDoklad" : value === "classic" ? "Klasická" : null)}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="classic">Klasická</SelectItem>
@@ -172,14 +220,14 @@ export function InvoiceForm({
           <Field label="Stav">
             <Select value={status} onValueChange={(value) => setStatus((value as InvoiceStatus) || "issued")}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>{(value) => (value ? statusLabel(value as InvoiceStatus) : null)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="draft">Koncept</SelectItem>
-                <SelectItem value="issued">Vystaveno</SelectItem>
-                <SelectItem value="partial">Částečně uhrazeno</SelectItem>
-                <SelectItem value="paid">Uhrazeno</SelectItem>
-                <SelectItem value="cancelled">Storno</SelectItem>
+                <SelectItem value="draft">{statusLabel("draft")}</SelectItem>
+                <SelectItem value="issued">{statusLabel("issued")}</SelectItem>
+                <SelectItem value="partial">{statusLabel("partial")}</SelectItem>
+                <SelectItem value="paid">{statusLabel("paid")}</SelectItem>
+                <SelectItem value="cancelled">{statusLabel("cancelled")}</SelectItem>
               </SelectContent>
             </Select>
           </Field>
@@ -217,7 +265,7 @@ export function InvoiceForm({
           <Field label="Způsob platby">
             <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value || DEFAULT_PAYMENT_METHOD)}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>{(value) => value || DEFAULT_PAYMENT_METHOD}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {PAYMENT_METHODS.map((method) => (
@@ -242,98 +290,94 @@ export function InvoiceForm({
             <input type="hidden" name="paidDate" value="" />
           )}
         </div>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="notVatPayer"
+            checked={notVatPayer}
+            onChange={(event) => setNotVatPayerFlag(event.target.checked)}
+            className="mt-0.5 size-4 accent-[oklch(0.38_0.07_155)]"
+          />
+          <span>
+            <span className="font-medium">Nejsem plátce DPH</span>
+            <span className="mt-0.5 block text-muted-foreground">
+              DPH se na dokladu ani v součtech nezobrazí. Nastavení se uloží i k firmě.
+            </span>
+          </span>
+        </label>
         <Field label="Předmět">
           <Input name="description" defaultValue={invoice?.description ?? ""} placeholder="Například správa webu za březen" />
         </Field>
       </section>
 
       <section className="grid gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-5">
-        <h2 className="text-lg font-medium">Odběratel</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-medium">Odběratel</h2>
+          <Link href="/odberatele/novy" className="text-sm text-primary underline-offset-2 hover:underline">
+            Nový odběratel
+          </Link>
+        </div>
         {customers.length > 0 ? (
-          <div className="grid gap-2">
-            <Label htmlFor="customer-search">Vybrat z adresáře</Label>
-            <Input
-              id="customer-search"
-              value={customerQuery}
-              onChange={(event) => setCustomerQuery(event.target.value)}
-              placeholder="Název, IČO nebo město"
-            />
-            {customerQuery || !customerId ? (
-              <div className="max-h-44 overflow-auto rounded-lg border border-border">
-                {filtered.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-muted-foreground">Nikdo takový v adresáři není. Vyplňte údaje níže, uložením se přidá.</p>
-                ) : (
-                  filtered.map((customer) => (
-                    <button
-                      key={customer.id}
-                      type="button"
-                      onClick={() => pickCustomer(customer)}
-                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted"
-                    >
-                      <span>{customer.name}</span>
-                      <span className="text-muted-foreground">{customer.ico || customer.city}</span>
-                    </button>
-                  ))
-                )}
-              </div>
+          <Field label="Vybrat z adresáře">
+            <Select value={customerId || null} onValueChange={(value) => pickCustomer(value || "")}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="— vyberte odběratele —">
+                  {(value) => {
+                    if (!value) return null;
+                    const customer = customers.find((row) => row.id === value);
+                    return customer ? customer.name : null;
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                    {customer.ico ? ` · ${customer.ico}` : customer.city ? ` · ${customer.city}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        ) : (
+          <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+            V adresáři zatím nikdo není. Nejdřív založte odběratele v{" "}
+            <Link href="/odberatele/novy" className="text-foreground underline-offset-2 hover:underline">
+              Odběratelích
+            </Link>
+            .
+          </p>
+        )}
+        {customerName ? (
+          <div className="grid gap-1 rounded-lg border border-border px-3 py-3 text-sm">
+            <p className="font-medium">{selectedCustomer?.name || customerName}</p>
+            {preview.ids ? <p className="text-muted-foreground">{preview.ids}</p> : null}
+            {preview.address ? <p className="text-muted-foreground">{preview.address}</p> : null}
+            {preview.email ? <p className="text-muted-foreground">{preview.email}</p> : null}
+            {selectedCustomer ? (
+              <p className="pt-1 text-xs text-muted-foreground">
+                Údaje měníte v{" "}
+                <Link href={`/odberatele/${selectedCustomer.id}/upravit`} className="underline-offset-2 hover:underline">
+                  kartě odběratele
+                </Link>
+                .
+              </p>
             ) : null}
           </div>
         ) : null}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Název">
-            <Input name="customerName" value={customerName} onChange={(event) => { setCustomerName(event.target.value); setCustomerId(""); }} required />
-          </Field>
-          <Field label="E-mail">
-            <Input name="customerEmail" type="email" value={customerEmail} onChange={(event) => setCustomerEmail(event.target.value)} />
-          </Field>
-          <div className="grid gap-2">
-            <Field label="IČO">
-              <Input name="customerIco" value={customerIco} onChange={(event) => { setCustomerIco(event.target.value); setCustomerId(""); }} />
-            </Field>
-            <AresLookup
-              ico={customerIco}
-              onLoaded={(party) => {
-                setCustomerId("");
-                setCustomerIco(party.ico);
-                setCustomerName(party.name);
-                setCustomerDic(party.dic);
-                setCustomerStreet(party.street);
-                setCustomerCity(party.city);
-                setCustomerZip(party.zip);
-                setCustomerCountry(party.country || "Česká republika");
-              }}
-            />
-          </div>
-          <Field label="DIČ">
-            <Input name="customerDic" value={customerDic} onChange={(event) => { setCustomerDic(event.target.value); setCustomerId(""); }} />
-          </Field>
-          <Field label="Ulice">
-            <Input name="customerStreet" value={customerStreet} onChange={(event) => setCustomerStreet(event.target.value)} />
-          </Field>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="PSČ">
-              <Input name="customerZip" value={customerZip} onChange={(event) => setCustomerZip(event.target.value)} />
-            </Field>
-            <Field label="Město">
-              <Input name="customerCity" value={customerCity} onChange={(event) => setCustomerCity(event.target.value)} />
-            </Field>
-          </div>
-          <Field label="Stát">
-            <Input name="customerCountry" value={customerCountry} onChange={(event) => setCustomerCountry(event.target.value)} />
-          </Field>
-        </div>
       </section>
 
       <section className="grid gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-medium">Položky</h2>
-          <Button type="button" variant="outline" onClick={() => setItems((current) => [...current, emptyItem()])}>
+          <Button type="button" variant="outline" onClick={() => setItems((current) => [...current, emptyItem(notVatPayer)])}>
             Přidat položku
           </Button>
         </div>
         <div className="grid gap-3">
           {items.map((item, index) => {
-            const line = lineTotals(parseAmount(item.quantity), parseAmount(item.unitPrice), Number(item.vatRate) || 0);
+            const vatRate = notVatPayer ? 0 : Number(item.vatRate) || 0;
+            const line = lineTotals(parseAmount(item.quantity), parseAmount(item.unitPrice), vatRate);
             return (
               <div key={item.key} className="grid gap-3 rounded-lg border border-border p-3">
                 <div className="flex items-center justify-between">
@@ -347,40 +391,48 @@ export function InvoiceForm({
                 <Field label="Název">
                   <Input value={item.name} onChange={(event) => updateItem(item.key, { name: event.target.value })} placeholder="Co fakturujete" />
                 </Field>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className={`grid grid-cols-2 gap-3 ${notVatPayer ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
                   <Field label="Množství">
                     <Input inputMode="decimal" value={item.quantity} onChange={(event) => updateItem(item.key, { quantity: event.target.value })} />
                   </Field>
                   <Field label="MJ">
                     <Input value={item.unit} onChange={(event) => updateItem(item.key, { unit: event.target.value })} />
                   </Field>
-                  <Field label="Cena bez DPH">
+                  <Field label={notVatPayer ? "Cena" : "Cena bez DPH"}>
                     <Input inputMode="decimal" value={item.unitPrice} onChange={(event) => updateItem(item.key, { unitPrice: event.target.value })} />
                   </Field>
-                  <Field label="DPH %">
-                    <Select value={item.vatRate} onValueChange={(value) => updateItem(item.key, { vatRate: value || "21" })}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="21">21 %</SelectItem>
-                        <SelectItem value="12">12 %</SelectItem>
-                        <SelectItem value="15">15 %</SelectItem>
-                        <SelectItem value="10">10 %</SelectItem>
-                        <SelectItem value="0">0 %</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
+                  {notVatPayer ? null : (
+                    <Field label="DPH %">
+                      <Select value={item.vatRate} onValueChange={(value) => updateItem(item.key, { vatRate: value || "21" })}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue>{(value) => (value != null ? `${value} %` : null)}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="21">21 %</SelectItem>
+                          <SelectItem value="12">12 %</SelectItem>
+                          <SelectItem value="15">15 %</SelectItem>
+                          <SelectItem value="10">10 %</SelectItem>
+                          <SelectItem value="0">0 %</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
                 </div>
-                <p className="text-sm text-muted-foreground">S DPH {formatMoney(line.totalGross, "CZK")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {notVatPayer ? `Celkem ${formatMoney(line.totalNet, "CZK")}` : `S DPH ${formatMoney(line.totalGross, "CZK")}`}
+                </p>
               </div>
             );
           })}
         </div>
         <div className="grid justify-end gap-1 text-sm">
-          <p>Základ {formatMoney(totals.net)}</p>
-          <p>DPH {formatMoney(totals.vat)}</p>
-          <p className="text-base font-medium">Celkem {formatMoney(totals.gross)}</p>
+          {notVatPayer ? null : (
+            <>
+              <p>Základ {formatMoney(totals.net)}</p>
+              <p>DPH {formatMoney(totals.vat)}</p>
+            </>
+          )}
+          <p className="text-base font-medium">Celkem {formatMoney(notVatPayer ? totals.net : totals.gross)}</p>
         </div>
       </section>
 

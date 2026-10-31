@@ -1,6 +1,7 @@
 import { buildSpaydString, resolveIban } from "@/lib/payment-qr";
 import { formatDate, formatQuantity } from "@/lib/money";
 import type { Company, Invoice } from "@/lib/types";
+import { isNonVatPayer } from "@/lib/vat";
 import "./invoice-document.css";
 
 function formatCzechAmount(amount: number): string {
@@ -21,6 +22,14 @@ function cityLine(zip: string, city: string): string {
   return [zip, city].filter(Boolean).join(" ");
 }
 
+function isTransferPayment(method: string): boolean {
+  const normalized = method
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return !normalized || normalized.includes("prevod");
+}
+
 export type InvoiceDocumentProps = {
   invoice: Invoice;
   company: Company;
@@ -31,10 +40,10 @@ export type InvoiceDocumentProps = {
 export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentProps) {
   const account = accountLabel(company);
   const iban = resolveIban(account, company.iban);
-  const amount = invoice.totalGross;
+  const hideVat = isNonVatPayer(company);
+  const amount = hideVat ? invoice.totalNet || invoice.totalGross : invoice.totalGross;
   const layout = invoice.layout === "idoklad" ? "idoklad" : "classic";
   const paymentMethod = invoice.paymentMethod || "Převodem";
-  const showQrForTransfer = paymentMethod.toLowerCase().includes("převod") || paymentMethod.toLowerCase().includes("prevod");
   const spayd = buildSpaydString({
     iban,
     amount,
@@ -43,7 +52,8 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
     dueDate: invoice.dueDate,
     message: invoice.number ? `Faktura ${invoice.number}` : "Faktura",
   });
-  const qrVisible = showQr !== false && showQrForTransfer && Boolean(spayd && amount > 0);
+  // QR is automatic for bank transfer whenever SPAYD can be built — no separate toggle.
+  const qrVisible = showQr !== false && isTransferPayment(paymentMethod) && Boolean(spayd && amount > 0);
   const totalText = formatCzechAmount(amount);
 
   return (
@@ -213,7 +223,7 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
               <span>Datum splatnosti:</span>
               <strong>{formatDate(invoice.dueDate)}</strong>
             </div>
-            {invoice.taxDate && invoice.taxDate !== invoice.issueDate ? (
+            {!hideVat && invoice.taxDate && invoice.taxDate !== invoice.issueDate ? (
               <div className="date-item">
                 <span>DUZP:</span>
                 <strong>{formatDate(invoice.taxDate)}</strong>
@@ -243,6 +253,7 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
                 <th className="col-qty">Počet</th>
                 <th className="col-unit">m.j.</th>
                 <th className="col-price">Cena za m.j.</th>
+                {hideVat ? null : <th className="col-vat">DPH</th>}
                 <th className="col-total">Celkem</th>
               </tr>
             </thead>
@@ -253,6 +264,7 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
                   <td className="col-qty">—</td>
                   <td className="col-unit">—</td>
                   <td className="col-price">—</td>
+                  {hideVat ? null : <td className="col-vat">—</td>}
                   <td className="col-total">—</td>
                 </tr>
               ) : (
@@ -262,7 +274,10 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
                     <td className="col-qty">{formatQuantity(item.quantity)}</td>
                     <td className="col-unit">{item.unit || "ks"}</td>
                     <td className="col-price">{formatCzechAmount(item.unitPrice)}</td>
-                    <td className="col-total">{formatCzechAmount(item.totalNet)}</td>
+                    {hideVat ? null : <td className="col-vat">{item.vatRate} %</td>}
+                    <td className="col-total">
+                      {formatCzechAmount(hideVat ? item.totalNet : item.totalGross)}
+                    </td>
                   </tr>
                 ))
               )}
@@ -289,11 +304,25 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
                 </div>
               </div>
             ) : null}
-            <div className="recap-bar">
-              <span>Celkem k úhradě:</span>
-              <strong>
-                {totalText} Kč
-              </strong>
+            <div className="recap-totals">
+              {hideVat ? null : (
+                <>
+                  <div className="recap-line">
+                    <span>Základ:</span>
+                    <strong>{formatCzechAmount(invoice.totalNet)} Kč</strong>
+                  </div>
+                  <div className="recap-line">
+                    <span>DPH:</span>
+                    <strong>{formatCzechAmount(invoice.totalVat)} Kč</strong>
+                  </div>
+                </>
+              )}
+              <div className="recap-bar">
+                <span>Celkem k úhradě:</span>
+                <strong>
+                  {totalText} Kč
+                </strong>
+              </div>
             </div>
           </div>
           {invoice.note ? (

@@ -417,6 +417,13 @@ export async function saveCompany(
   });
 }
 
+/** Update only the supplier VAT note (e.g. from the invoice form checkbox). */
+export async function setCompanyVatNote(vatNote: string) {
+  await updateStore((doc) => {
+    doc.company.vatNote = vatNote.trim();
+  });
+}
+
 export async function readCompanyPublic() {
   const doc = await loadStore();
   const { idokladClientSecret: _secret, ...company } = doc.company;

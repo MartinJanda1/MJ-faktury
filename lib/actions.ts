@@ -12,12 +12,14 @@ import {
   listInvoiceNumbers,
   saveCompany,
   saveManualCustomer,
+  setCompanyVatNote,
   setInvoicePayment,
   setInvoiceStatus,
   upsertInvoice,
 } from "./persist";
 import { addDaysIso, isInvoiceEditable, suggestNextNumber, variableSymbolFromNumber } from "./status";
 import type { InvoiceKind, InvoiceStatus, ItemDraft } from "./types";
+import { vatNoteForFlag } from "./vat";
 
 function refresh() {
   revalidatePath("/", "layout");
@@ -37,7 +39,10 @@ export async function saveCompanyAction(_previous: { error: string; saved: boole
     country: String(formData.get("country") ?? ""),
     email: String(formData.get("email") ?? ""),
     phone: String(formData.get("phone") ?? ""),
-    vatNote: String(formData.get("vatNote") ?? ""),
+    vatNote:
+      formData.get("notVatPayer") === "on"
+        ? String(formData.get("vatNote") ?? "").trim() || vatNoteForFlag(true)
+        : "",
     bankAccount: String(formData.get("bankAccount") ?? ""),
     bankCode: String(formData.get("bankCode") ?? ""),
     iban: String(formData.get("iban") ?? ""),
@@ -109,7 +114,10 @@ export async function saveInvoiceAction(_previous: { error: string }, formData: 
   const paidDate = safeStatus === "paid" ? paidDateRaw || todayPrague() : paidDateRaw || null;
   const kind = String(formData.get("kind") ?? "issued") as InvoiceKind;
   const safeKind: InvoiceKind = kind === "proforma" || kind === "credit_note" ? kind : "issued";
-  const customerId = String(formData.get("customerId") ?? "");
+  const customerId = String(formData.get("customerId") ?? "").trim();
+  if (!customerId) {
+    return { error: "Vyberte odběratele z adresáře. Nového založíte v sekci Odběratelé." };
+  }
   const invoiceId = String(formData.get("id") ?? "") || null;
   if (invoiceId) {
     const existing = await getInvoiceRow(invoiceId);
@@ -122,8 +130,13 @@ export async function saveInvoiceAction(_previous: { error: string }, formData: 
       };
     }
   }
+  const notVatPayer = formData.get("notVatPayer") === "on";
+  const normalizedItems = notVatPayer
+    ? items.map((item) => ({ ...item, vatRate: 0 }))
+    : items;
   let result: { id: string };
   try {
+    await setCompanyVatNote(vatNoteForFlag(notVatPayer));
     result = await upsertInvoice(
       {
         externalId: null,
@@ -153,11 +166,11 @@ export async function saveInvoiceAction(_previous: { error: string }, formData: 
         status: safeStatus,
         description: String(formData.get("description") ?? ""),
         note: String(formData.get("note") ?? ""),
-        items,
+        items: normalizedItems,
         supplier: null,
       },
       invoiceId,
-      customerId || null,
+      customerId,
     );
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Doklad se nepodařilo uložit." };

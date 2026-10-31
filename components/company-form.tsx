@@ -20,6 +20,7 @@ export function CompanyForm({ company }: { company: Company }) {
   const [email, setEmail] = useState(company.email);
   const [phone, setPhone] = useState(company.phone);
   const [vatNote, setVatNote] = useState(company.vatNote || "");
+  const [notVatPayer, setNotVatPayer] = useState(Boolean(company.vatNote?.trim()));
   const [footerNote, setFooterNote] = useState(company.footerNote || "");
 
   return (
@@ -49,6 +50,7 @@ export function CompanyForm({ company }: { company: Company }) {
               setZip(party.zip);
               setCountry(party.country || "Česká republika");
               setVatNote(party.vatNote || (party.vatPayer ? "" : "Nejsme plátci DPH"));
+              setNotVatPayer(!party.vatPayer);
             }}
           />
         </div>
@@ -70,14 +72,37 @@ export function CompanyForm({ company }: { company: Company }) {
         <Field label="Stát">
           <Input name="country" value={country} onChange={(event) => setCountry(event.target.value)} />
         </Field>
-        <Field label="Poznámka k DPH">
-          <Input
-            name="vatNote"
-            value={vatNote}
-            onChange={(event) => setVatNote(event.target.value)}
-            placeholder="Nejsme plátci DPH"
+        <label className="flex items-start gap-2 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            name="notVatPayer"
+            checked={notVatPayer}
+            onChange={(event) => {
+              const checked = event.target.checked;
+              setNotVatPayer(checked);
+              setVatNote(checked ? vatNote.trim() || "Nejsme plátci DPH" : "");
+            }}
+            className="mt-0.5 size-4 accent-[oklch(0.38_0.07_155)]"
           />
-        </Field>
+          <span>
+            <span className="font-medium">Nejsme plátci DPH</span>
+            <span className="mt-0.5 block text-muted-foreground">
+              Na fakturách se nezobrazí sloupce ani součty DPH. Poznámka u dodavatele zůstane viditelná.
+            </span>
+          </span>
+        </label>
+        {notVatPayer ? (
+          <Field label="Poznámka k DPH">
+            <Input
+              name="vatNote"
+              value={vatNote}
+              onChange={(event) => setVatNote(event.target.value)}
+              placeholder="Nejsme plátci DPH"
+            />
+          </Field>
+        ) : (
+          <input type="hidden" name="vatNote" value="" />
+        )}
         <Field label="Patička dokladu">
           <Input
             name="footerNote"
@@ -87,7 +112,7 @@ export function CompanyForm({ company }: { company: Company }) {
           />
         </Field>
         <p className="sm:col-span-2 text-xs text-muted-foreground">
-          Poznámka k DPH se zobrazí u dodavatele na faktuře. Patička na spodním okraji dokladu (klasická i iDoklad šablona).
+          Patička je na spodním okraji dokladu (klasická i iDoklad šablona).
         </p>
         <h3 className="font-heading text-base sm:col-span-2">Bankovní údaje</h3>
         <BankAutofillFields
