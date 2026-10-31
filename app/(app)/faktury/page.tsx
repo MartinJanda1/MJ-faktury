@@ -1,11 +1,13 @@
 import Link from "next/link";
+import { InvoiceListActions } from "@/components/invoice-list-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDate, formatMoney, todayPrague } from "@/lib/money";
 import { getInvoiceFilterMeta, getInvoices, type InvoiceSort, type SortDirection } from "@/lib/queries";
-import { cn } from "cn";
+import { isInvoiceEditable } from "@/lib/status";
+import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Faktury" };
 
@@ -163,26 +165,40 @@ export default async function InvoicesPage({ searchParams }: PageProps<"/faktury
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
-          <div className="hidden grid-cols-[8rem_1fr_8rem_8rem_7rem] gap-3 border-b border-border px-4 py-2 text-xs text-muted-foreground md:grid">
+          <div className="hidden grid-cols-[7rem_minmax(0,1fr)_7rem_7rem_6rem_minmax(12rem,auto)] gap-3 border-b border-border px-4 py-2 text-xs text-muted-foreground lg:grid">
             <SortLink filter={filter} column="number" label="Číslo" />
             <SortLink filter={filter} column="customer" label="Odběratel" />
             <SortLink filter={filter} column="issue" label="Vystaveno" />
             <SortLink filter={filter} column="status" label="Stav" />
             <SortLink filter={filter} column="total" label="Celkem" className="text-right" />
+            <span className="text-right">Akce</span>
           </div>
-          {invoices.map((invoice) => (
-            <Link
-              key={invoice.id}
-              href={`/faktury/${invoice.id}`}
-              className="grid gap-1 border-b border-border px-4 py-3 last:border-b-0 md:grid-cols-[8rem_1fr_8rem_8rem_7rem] md:items-center md:gap-3"
-            >
-              <span className="font-medium">{invoice.number}</span>
-              <span className="truncate text-sm">{invoice.customerName || "Bez odběratele"}</span>
-              <span className="text-sm text-muted-foreground">{formatDate(invoice.issueDate)}</span>
-              <StatusBadge status={invoice.status} dueDate={invoice.dueDate} paidDate={invoice.paidDate} />
-              <span className="text-sm md:text-right">{formatMoney(invoice.totalGross, invoice.currency)}</span>
-            </Link>
-          ))}
+          {invoices.map((invoice) => {
+            const listHref = href(filter);
+            return (
+              <div
+                key={invoice.id}
+                className="grid gap-2 border-b border-border px-4 py-3 last:border-b-0 lg:grid-cols-[7rem_minmax(0,1fr)_7rem_7rem_6rem_minmax(12rem,auto)] lg:items-center lg:gap-3"
+              >
+                <Link href={`/faktury/${invoice.id}`} className="font-medium hover:underline">
+                  {invoice.number}
+                </Link>
+                <Link href={`/faktury/${invoice.id}`} className="truncate text-sm hover:underline">
+                  {invoice.customerName || "Bez odběratele"}
+                </Link>
+                <span className="text-sm text-muted-foreground">{formatDate(invoice.issueDate)}</span>
+                <StatusBadge status={invoice.status} dueDate={invoice.dueDate} paidDate={invoice.paidDate} />
+                <span className="text-sm lg:text-right">{formatMoney(invoice.totalGross, invoice.currency)}</span>
+                <InvoiceListActions
+                  id={invoice.id}
+                  number={invoice.number}
+                  status={invoice.status}
+                  editable={isInvoiceEditable(invoice)}
+                  returnTo={listHref}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
       <p className="mt-3 text-sm text-muted-foreground">

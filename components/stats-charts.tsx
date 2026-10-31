@@ -5,31 +5,64 @@ import { formatStatsHours, formatStatsMoney, type StatsPoint } from "@/lib/invoi
 const BRAND = "#00b5c8";
 const PALETTE = ["#0d9488", "#0284c7", "#7c3aed", "#d97706", "#e11d48", "#16a34a", "#0891b2", "#4f46e5"];
 
+/** SVG bar chart — pixel geometry, no CSS %/flex height traps. */
 export function RevenueBars({ points, title }: { points: StatsPoint[]; title: string }) {
   const max = Math.max(1, ...points.map((point) => point.total));
+  const width = 720;
+  const height = 288;
+  const padTop = 12;
+  const padBottom = 28;
+  const padX = 8;
+  const chartH = height - padTop - padBottom;
+  const chartW = width - padX * 2;
+  const gap = points.length > 8 ? 4 : 8;
+  const barW = Math.max(6, (chartW - gap * Math.max(0, points.length - 1)) / Math.max(1, points.length));
+
   return (
     <div className="rounded-xl bg-card p-5 ring-1 ring-foreground/10 lg:col-span-3">
       <h2 className="mb-4 text-sm font-semibold">{title}</h2>
       {points.length === 0 ? (
         <p className="flex h-72 items-center justify-center text-sm text-muted-foreground">Žádná data</p>
       ) : (
-        <div className="flex h-72 items-end gap-1.5 sm:gap-2">
-          {points.map((point) => {
-            const height = Math.max(point.total > 0 ? 8 : 2, Math.round((point.total / max) * 100));
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="h-72 w-full"
+          role="img"
+          aria-label={title}
+          data-testid="revenue-bars"
+        >
+          {points.map((point, index) => {
+            const barHeight =
+              point.total > 0 ? Math.max(6, Math.round((point.total / max) * chartH)) : 2;
+            const x = padX + index * (barW + gap);
+            const y = padTop + chartH - barHeight;
+            const tip = `${point.fullLabel || point.label}: ${formatStatsMoney(point.total)} Kč · ${point.count} faktur · ${formatStatsHours(point.hours)} h`;
             return (
-              <div key={point.key} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2">
-                <div className="group relative flex w-full flex-1 items-end justify-center">
-                  <div
-                    className="w-full max-w-10 rounded-t-sm transition-opacity hover:opacity-90"
-                    style={{ height: `${height}%`, backgroundColor: BRAND }}
-                    title={`${point.fullLabel || point.label}: ${formatStatsMoney(point.total)} Kč · ${point.count} faktur · ${formatStatsHours(point.hours)} h`}
-                  />
-                </div>
-                <span className="max-w-full truncate text-[10px] text-muted-foreground sm:text-xs">{point.label}</span>
-              </div>
+              <g key={point.key}>
+                <title>{tip}</title>
+                <rect
+                  x={x}
+                  y={y}
+                  width={barW}
+                  height={barHeight}
+                  rx={2}
+                  fill={BRAND}
+                  data-total={point.total}
+                  data-bar-height={barHeight}
+                />
+                <text
+                  x={x + barW / 2}
+                  y={height - 8}
+                  textAnchor="middle"
+                  className="fill-muted-foreground"
+                  style={{ fontSize: points.length > 10 ? 10 : 12 }}
+                >
+                  {point.label}
+                </text>
+              </g>
             );
           })}
-        </div>
+        </svg>
       )}
     </div>
   );

@@ -211,6 +211,9 @@ export function InvoiceForm({
           <Field label="Konstantní symbol">
             <Input name="constantSymbol" defaultValue={invoice?.constantSymbol ?? ""} />
           </Field>
+          <Field label="Specifický symbol">
+            <Input name="specificSymbol" defaultValue={invoice?.specificSymbol ?? ""} />
+          </Field>
           <Field label="Způsob platby">
             <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value || DEFAULT_PAYMENT_METHOD)}>
               <SelectTrigger className="w-full">

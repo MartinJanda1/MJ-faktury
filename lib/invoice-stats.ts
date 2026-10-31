@@ -106,6 +106,7 @@ export function matchesStatsFilter(invoice: StatsInvoice, filter: StatsFilter): 
     const quarter = Math.ceil(parts.month / 3);
     if (quarter !== Number(filter.quarter)) return false;
   }
+  // Accept "1" and "01" like the original month select values.
   if (filter.month && parts.month !== Number(filter.month)) return false;
   return true;
 }
@@ -203,12 +204,13 @@ export function seriesByCustomer(invoices: StatsInvoice[]): StatsPoint[] {
 }
 
 export function chartSeries(invoices: StatsInvoice[], filter: StatsFilter) {
-  if (filter.year && filter.month) {
+  const monthNum = filter.month ? Number(filter.month) : 0;
+  if (filter.year && monthNum >= 1 && monthNum <= 12) {
     const all = seriesByMonth(invoices, filter.year);
     return {
       mode: "month" as const,
-      title: `Obrat – ${MONTH_NAMES[Number(filter.month) - 1]} ${filter.year}`,
-      points: all.filter((point) => point.month === Number(filter.month)),
+      title: `Obrat – ${MONTH_NAMES[monthNum - 1]} ${filter.year}`,
+      points: all.filter((point) => point.month === monthNum),
     };
   }
   if (filter.year && filter.quarter) {
@@ -232,6 +234,12 @@ export function chartSeries(invoices: StatsInvoice[], filter: StatsFilter) {
     title: "Obrat po letech",
     points: seriesByYear(invoices),
   };
+}
+
+/** Pixel height for a revenue bar given the series max (for tests / SVG chart). */
+export function barPixelHeight(total: number, max: number, areaPx = 248): number {
+  if (total <= 0) return 2;
+  return Math.max(6, Math.round((total / Math.max(1, max)) * areaPx));
 }
 
 export function formatStatsMoney(value: number): string {

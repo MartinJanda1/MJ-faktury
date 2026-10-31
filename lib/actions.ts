@@ -173,12 +173,17 @@ export async function deleteInvoiceAction(formData: FormData) {
   redirect("/faktury");
 }
 
+function redirectAfter(formData: FormData, fallback: string) {
+  const returnTo = String(formData.get("returnTo") ?? "").trim();
+  redirect(returnTo.startsWith("/") ? returnTo : fallback);
+}
+
 export async function markPaidAction(formData: FormData) {
   await connection();
   const id = String(formData.get("id") ?? "");
   await setInvoicePayment(id, todayPrague());
   refresh();
-  redirect(`/faktury/${id}`);
+  redirectAfter(formData, `/faktury/${id}`);
 }
 
 export async function markUnpaidAction(formData: FormData) {
@@ -186,7 +191,7 @@ export async function markUnpaidAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   await setInvoicePayment(id, null);
   refresh();
-  redirect(`/faktury/${id}`);
+  redirectAfter(formData, `/faktury/${id}`);
 }
 
 export async function cancelInvoiceAction(formData: FormData) {
@@ -194,7 +199,7 @@ export async function cancelInvoiceAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   await setInvoiceStatus(id, "cancelled");
   refresh();
-  redirect(`/faktury/${id}`);
+  redirectAfter(formData, `/faktury/${id}`);
 }
 
 export async function restoreInvoiceAction(formData: FormData) {
@@ -202,7 +207,7 @@ export async function restoreInvoiceAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   await setInvoiceStatus(id, "issued");
   refresh();
-  redirect(`/faktury/${id}`);
+  redirectAfter(formData, `/faktury/${id}`);
 }
 
 export async function duplicateInvoiceAction(formData: FormData) {

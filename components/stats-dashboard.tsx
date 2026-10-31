@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { CustomerDonut, RevenueBars } from "@/components/stats-charts";
 import {
@@ -17,7 +17,9 @@ import {
   type StatsInvoice,
   type StatsStatusFilter,
 } from "@/lib/invoice-stats";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
+
+const STATS_PREFS_KEY = "faktura-stats-prefs";
 
 function defaultFilter(invoices: StatsInvoice[]): StatsFilter {
   const years = availableYears(invoices);
@@ -30,8 +32,54 @@ function defaultFilter(invoices: StatsInvoice[]): StatsFilter {
   };
 }
 
+function loadPrefs(): Partial<StatsFilter> | null {
+  try {
+    const raw = localStorage.getItem(STATS_PREFS_KEY);
+    return raw ? (JSON.parse(raw) as Partial<StatsFilter>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePrefs(filter: StatsFilter) {
+  try {
+    localStorage.setItem(STATS_PREFS_KEY, JSON.stringify(filter));
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function mergePrefs(invoices: StatsInvoice[]): StatsFilter {
+  const base = defaultFilter(invoices);
+  const prefs = loadPrefs();
+  if (!prefs) return base;
+  const years = availableYears(invoices).map(String);
+  const year = prefs.year && years.includes(String(prefs.year)) ? String(prefs.year) : base.year;
+  const customers = new Set(buildCustomerOptions(invoices).map((c) => c.key));
+  return {
+    year,
+    quarter: year && prefs.quarter ? String(prefs.quarter) : "",
+    month: year && prefs.month ? String(Number(prefs.month) || "") : "",
+    customerKey: prefs.customerKey && customers.has(prefs.customerKey) ? prefs.customerKey : "",
+    status: (prefs.status as StatsStatusFilter) || "all",
+  };
+}
+
 export function StatsDashboard({ invoices }: { invoices: StatsInvoice[] }) {
+  // Mount gate: first paint is a stub so SSR/hydration never touch locale-formatted KPIs.
+  const [ready, setReady] = useState(false);
   const [filter, setFilter] = useState<StatsFilter>(() => defaultFilter(invoices));
+
+  useEffect(() => {
+    setFilter(mergePrefs(invoices));
+    setReady(true);
+  }, [invoices]);
+
+  useEffect(() => {
+    if (!ready) return;
+    savePrefs(filter);
+  }, [filter, ready]);
+
   const years = useMemo(() => availableYears(invoices), [invoices]);
   const customers = useMemo(() => buildCustomerOptions(invoices), [invoices]);
   const filtered = useMemo(() => filterInvoices(invoices, filter), [invoices, filter]);
@@ -56,10 +104,18 @@ export function StatsDashboard({ invoices }: { invoices: StatsInvoice[] }) {
     setFilter(defaultFilter(invoices));
   }
 
+  if (!ready) {
+    return (
+      <div className="rounded-xl bg-card px-5 py-10 ring-1 ring-foreground/10">
+        <p className="text-sm text-muted-foreground">Načítám statistiky…</p>
+      </div>
+    );
+  }
+
   const selectClass = "h-9 min-w-[7.5rem] rounded-lg border border-input bg-background px-3 text-sm disabled:opacity-50";
 
   return (
-    <div>
+    <div data-testid="stats-dashboard">
       <section className="mb-6 rounded-xl bg-card p-5 ring-1 ring-foreground/10">
         <div className="flex flex-wrap items-end gap-3">
           <label className="grid gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -190,7 +246,9 @@ export function StatsDashboard({ invoices }: { invoices: StatsInvoice[] }) {
                     <td className="px-4 py-2.5 font-medium">{point.fullLabel || point.label}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{point.count}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{formatStatsHours(point.hours)}</td>
-                    <td className="px-4 py-2.5 text-right font-medium tabular-nums">{formatStatsMoney(point.total)} Kč</td>
+                    <td className="px-4 py-2.5 text-right font-medium tabular-nums">
+                      {formatStatsMoney(point.total)} Kč
+                    </td>
                   </tr>
                 ))
               )}

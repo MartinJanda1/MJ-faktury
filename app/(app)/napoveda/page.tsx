@@ -46,17 +46,22 @@ export default function HelpPage() {
             <li>Filtry: období, stav, odběratel, hledání a řazení sloupců.</li>
             <li>Kopírování vytvoří nový doklad s navazujícím číslem a dnešním datem.</li>
             <li>
-              <Link href="/statistiky" className="text-foreground underline-offset-2 hover:underline">Statistiky</Link> ukazují obrat, KPI a rozpad podle období a odběratele.
+              <Link href="/statistiky" className="text-foreground underline-offset-2 hover:underline">Statistiky</Link> ukazují obrat, KPI, grafy a rozpad podle období a odběratele (filtry se pamatují).
             </li>
+            <li>V seznamu faktur jsou rychlé akce: PDF, úhrada, kopie, storno.</li>
           </ul>
         </section>
 
         <section className="grid gap-2">
-          <h2 className="text-base font-medium">Import z iDokladu</h2>
+          <h2 className="text-base font-medium">Import a záloha</h2>
           <ul className="list-disc space-y-1.5 pl-5 text-muted-foreground">
             <li>API klíče (Client ID / Secret) — bez hesla k webu iDoklad.</li>
-            <li>Soubor CSV/XLSX, ISDOC nebo ZIP s ISDOC.</li>
+            <li>Soubor CSV/XLSX, ISDOC, ZIP s ISDOC nebo JSON export faktura-app.</li>
             <li>Opakovaný import aktualizuje doklad se stejným číslem a kontakt se stejným IČO.</li>
+            <li>
+              Zálohu JSON stáhnete na stránce{" "}
+              <Link href="/import" className="text-foreground underline-offset-2 hover:underline">Import</Link>.
+            </li>
           </ul>
         </section>
 

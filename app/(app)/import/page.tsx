@@ -1,5 +1,6 @@
 import { ImportPanel } from "@/components/import-panel";
 import { PageHeader } from "@/components/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import { getCompany } from "@/lib/queries";
 
 export const metadata = { title: "Import" };
@@ -12,6 +13,11 @@ export default async function ImportPage() {
         eyebrow="Přenos"
         title="Import z iDokladu"
         description="API klíč není potřeba. Stačí export CSV nebo Excelu, který si stáhnete sami v iDokladu, a nahrání sem."
+        action={
+          <a href="/api/export/json" className={buttonVariants({ variant: "outline" })}>
+            Stáhnout zálohu JSON
+          </a>
+        }
       />
       <ol className="mb-6 max-w-3xl list-decimal space-y-2 pl-5 text-sm leading-6 text-muted-foreground">
         <li>
@@ -27,7 +33,9 @@ export default async function ImportPage() {
         <ImportPanel clientId={company.idokladClientId} hasSecret={company.hasIdokladSecret} />
       </div>
       <p className="mt-4 max-w-3xl text-sm text-muted-foreground">
-        Export seznamu přenese hlavičku faktury, odběratele a součty. Položkový rozpis v CSV ze seznamu obvykle není — u každé faktury vznikne souhrnná položka. Pokud budete chtít i jednotlivé řádky, exportujte ISDOC z detailu dokladu.
+        Export seznamu přenese hlavičku faktury, odběratele a částky. Položkový rozpis v CSV ze seznamu obvykle není — u každé faktury
+        vznikne souhrnná položka. Pokud budete chtít i jednotlivé řádky, exportujte ISDOC z detailu dokladu. Zálohu celé evidence
+        stáhnete jako JSON (kompatibilní s importem faktura-app).
       </p>
     </div>
   );

@@ -170,6 +170,12 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
                 <span>konstantní:</span>
                 <span>{invoice.constantSymbol || "—"}</span>
               </div>
+              {invoice.specificSymbol ? (
+                <div className="payment-line indent">
+                  <span>specifický:</span>
+                  <span>{invoice.specificSymbol}</span>
+                </div>
+              ) : null}
             </div>
             <div className="payment-col">
               <div className="payment-line">
@@ -207,6 +213,12 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
               <span>Datum splatnosti:</span>
               <strong>{formatDate(invoice.dueDate)}</strong>
             </div>
+            {invoice.taxDate && invoice.taxDate !== invoice.issueDate ? (
+              <div className="date-item">
+                <span>DUZP:</span>
+                <strong>{formatDate(invoice.taxDate)}</strong>
+              </div>
+            ) : null}
             {invoice.orderNumber ? (
               <div className="date-item layout-classic-extra">
                 <span>Číslo objednávky:</span>

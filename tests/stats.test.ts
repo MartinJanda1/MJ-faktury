@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  barPixelHeight,
   chartSeries,
   filterInvoices,
   invoiceHours,
@@ -105,4 +106,52 @@ test("chart series switches between years and months", () => {
   assert.equal(byMonth.points.length, 12);
   assert.equal(byMonth.points[0].count, 1);
   assert.equal(byMonth.points[1].total, 5000);
+  assert.equal(byMonth.points[0].key, "2026-01");
+});
+
+test("month filter accepts padded and unpadded values", () => {
+  const padded = chartSeries(sample, {
+    year: "2026",
+    quarter: "",
+    month: "01",
+    customerKey: "",
+    status: "all",
+  });
+  const unpadded = chartSeries(sample, {
+    year: "2026",
+    quarter: "",
+    month: "1",
+    customerKey: "",
+    status: "all",
+  });
+  assert.equal(padded.mode, "month");
+  assert.equal(padded.points.length, 1);
+  assert.equal(padded.points[0].total, 10000);
+  assert.equal(unpadded.points[0].total, padded.points[0].total);
+
+  const filtered = filterInvoices(sample, {
+    year: "2026",
+    quarter: "",
+    month: "01",
+    customerKey: "",
+    status: "all",
+  });
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0].number, "VF 01/2026");
+});
+
+test("bar pixel heights scale with monthly totals", () => {
+  const series = chartSeries(sample, {
+    year: "2026",
+    quarter: "",
+    month: "",
+    customerKey: "",
+    status: "all",
+  });
+  const max = Math.max(...series.points.map((p) => p.total));
+  assert.equal(max, 10000);
+  assert.equal(barPixelHeight(10000, max), 248);
+  assert.equal(barPixelHeight(5000, max), 124);
+  assert.equal(barPixelHeight(0, max), 2);
+  assert.ok(series.points.some((p) => p.total > 0), "monthly series must include revenue months");
 });
