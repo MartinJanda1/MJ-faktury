@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import JSZip from "jszip";
+import { importFakturaAppJson, looksLikeFakturaAppJson } from "./faktura-app-json";
 import { importIsdocXml, type IsdocImport } from "./isdoc";
 import { applyImport } from "./persist";
 import { decodeTableText, importRows, parseCsv, type TabularImport } from "./tabular";
@@ -49,7 +50,11 @@ export async function importUploadedFile(filename: string, buffer: Buffer): Prom
   if (lower.endsWith(".xml") || lower.endsWith(".isdoc")) {
     return fromIsdoc(importIsdocXml(buffer.toString("utf8"), filename));
   }
+  if (lower.endsWith(".json")) {
+    return importFakturaAppJson(buffer.toString("utf8"), filename);
+  }
   const text = decodeTableText(buffer);
+  if (looksLikeFakturaAppJson(text)) return importFakturaAppJson(text, filename);
   if (text.includes("<Invoice") || text.includes("isdoc")) return fromIsdoc(importIsdocXml(text, filename));
   return { ...importRows(parseCsv(text), filename), supplier: null };
 }

@@ -74,6 +74,13 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
                   <span>{company.ico}</span>
                 </div>
               ) : null}
+              {company.dic ? (
+                <div className="party-ids">
+                  <span>DIČ:</span>
+                  <span>{company.dic}</span>
+                </div>
+              ) : null}
+              {company.vatNote ? <span className="supplier-vat-note">{company.vatNote}</span> : null}
               {(company.email || company.phone) && (
                 <>
                   <strong className="contact-block-title">Kontaktní údaje</strong>
@@ -284,6 +291,12 @@ export function InvoiceDocument({ invoice, company, showQr }: InvoiceDocumentPro
           ) : null}
         </div>
       </section>
+
+      {company.footerNote ? (
+        <footer className="inv-footer-note">
+          <p>{company.footerNote}</p>
+        </footer>
+      ) : null}
     </article>
   );
 }

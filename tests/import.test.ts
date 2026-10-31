@@ -264,6 +264,39 @@ test("repeated import updates the same invoice and customer", async () => {
   assert.equal(invoice?.items.length, 1);
 });
 
+test("faktura-app JSON maps bank payment and non-VAT supplier note into company", async () => {
+  const fsJson = await import("node:fs");
+  const samplePath = "/home/ubuntu/.cursor/projects/workspace/uploads/csv-05_2026-ee4077677b_1e74.json";
+  const raw = fsJson.readFileSync(samplePath, "utf8");
+  const { bankFieldsFromPayment, importFakturaAppJson, splitCityLine } = await import("../lib/faktura-app-json.ts");
+  assert.deepEqual(splitCityLine("143 00 Praha 4"), { zip: "143 00", city: "Praha 4" });
+  assert.deepEqual(bankFieldsFromPayment({ accountNumber: "2100132288/2010", iban: "CZ8420100000002100132288", swift: "FIOBCZPPXXX" }), {
+    bankAccount: "2100132288",
+    bankCode: "2010",
+    iban: "CZ84 2010 0000 0021 0013 2288",
+    swift: "FIOBCZPPXXX",
+  });
+  const imported = importFakturaAppJson(raw, "csv-05_2026.json");
+  assert.equal(imported.invoices.length, 1);
+  assert.equal(imported.invoices[0].number, "05/2026");
+  assert.equal(imported.supplier?.vatNote, "Nejsme plátci DPH");
+  assert.equal(imported.supplier?.bankAccount, "2100132288");
+  assert.equal(imported.supplier?.bankCode, "2010");
+  assert.equal(imported.supplier?.iban, "CZ84 2010 0000 0021 0013 2288");
+  assert.equal(imported.supplier?.swift, "FIOBCZPPXXX");
+
+  const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), "faktura-json-"));
+  process.env.FAKTURA_DB_PATH = path.join(dir2, "test.json");
+  const { applyImport, readCompanyPublic } = await import("../lib/persist.ts");
+  await applyImport(imported.customers, imported.invoices, imported.supplier);
+  const company = await readCompanyPublic();
+  assert.equal(company.vatNote, "Nejsme plátci DPH");
+  assert.equal(company.bankAccount, "2100132288");
+  assert.equal(company.bankCode, "2010");
+  assert.equal(company.iban, "CZ84 2010 0000 0021 0013 2288");
+  assert.equal(company.swift, "FIOBCZPPXXX");
+});
+
 test("xlsx contact sheet is recognized", async () => {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Kontakty");

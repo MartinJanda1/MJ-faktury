@@ -220,21 +220,32 @@ function upsertInvoiceInDoc(
   return { id: id!, created };
 }
 
+function fillBlank(current: string | undefined, next: string | undefined): string {
+  const existing = (current ?? "").trim();
+  if (existing) return existing;
+  return (next ?? "").trim();
+}
+
+/** Fill empty company identity / bank / VAT note fields from an imported supplier. */
 function fillCompanyIfEmptyInDoc(doc: StoreDocument, supplier: SupplierDraft) {
-  if (doc.company.name.trim()) return;
-  doc.company.name = supplier.name.trim();
-  doc.company.ico = supplier.ico.trim();
-  doc.company.dic = supplier.dic.trim();
-  doc.company.street = supplier.street.trim();
-  doc.company.city = supplier.city.trim();
-  doc.company.zip = supplier.zip.trim();
-  doc.company.country = supplier.country.trim() || "Česká republika";
-  doc.company.email = supplier.email.trim();
-  doc.company.phone = supplier.phone.trim();
-  doc.company.bankAccount = supplier.bankAccount.trim();
-  doc.company.bankCode = supplier.bankCode.trim();
-  doc.company.iban = supplier.iban.trim();
-  doc.company.swift = supplier.swift.trim();
+  const company = doc.company;
+  if (!company.name.trim()) {
+    company.name = supplier.name.trim();
+    company.ico = fillBlank(company.ico, supplier.ico);
+    company.dic = fillBlank(company.dic, supplier.dic);
+    company.street = fillBlank(company.street, supplier.street);
+    company.city = fillBlank(company.city, supplier.city);
+    company.zip = fillBlank(company.zip, supplier.zip);
+    company.country = fillBlank(company.country, supplier.country) || "Česká republika";
+    company.email = fillBlank(company.email, supplier.email);
+    company.phone = fillBlank(company.phone, supplier.phone);
+  }
+  company.vatNote = fillBlank(company.vatNote, supplier.vatNote);
+  company.bankAccount = fillBlank(company.bankAccount, supplier.bankAccount);
+  company.bankCode = fillBlank(company.bankCode, supplier.bankCode);
+  company.iban = fillBlank(company.iban, supplier.iban);
+  company.swift = fillBlank(company.swift, supplier.swift);
+  if (company.footerNote == null) company.footerNote = "";
 }
 
 export async function upsertCustomer(draft: CustomerDraft): Promise<{ id: string; created: boolean }> {
@@ -295,7 +306,15 @@ export async function applyImport(customers: CustomerDraft[], invoices: InvoiceD
         counts.warnings.push(error instanceof Error ? error.message : "Doklad se nepodařilo uložit.");
       }
     }
-    if (supplier?.name.trim()) fillCompanyIfEmptyInDoc(doc, supplier);
+    if (
+      supplier &&
+      (supplier.name.trim() ||
+        supplier.bankAccount.trim() ||
+        supplier.iban.trim() ||
+        supplier.vatNote.trim())
+    ) {
+      fillCompanyIfEmptyInDoc(doc, supplier);
+    }
     return counts;
   });
 }
@@ -372,7 +391,9 @@ export async function readCompanySecrets(): Promise<CompanySecrets> {
   return { clientId: doc.company.idokladClientId, clientSecret: doc.company.idokladClientSecret };
 }
 
-export async function saveCompany(input: SupplierDraft & { clientId: string; clientSecret: string | null; clearSecret: boolean }) {
+export async function saveCompany(
+  input: SupplierDraft & { footerNote: string; clientId: string; clientSecret: string | null; clearSecret: boolean },
+) {
   await updateStore((doc) => {
     const secret = input.clearSecret ? "" : input.clientSecret?.trim() || doc.company.idokladClientSecret;
     const clientId = input.clearSecret ? "" : input.clientId.trim() || doc.company.idokladClientId;
@@ -385,10 +406,12 @@ export async function saveCompany(input: SupplierDraft & { clientId: string; cli
     doc.company.country = input.country.trim() || "Česká republika";
     doc.company.email = input.email.trim();
     doc.company.phone = input.phone.trim();
+    doc.company.vatNote = input.vatNote.trim();
     doc.company.bankAccount = input.bankAccount.trim();
     doc.company.bankCode = input.bankCode.trim();
     doc.company.iban = input.iban.trim();
     doc.company.swift = input.swift.trim();
+    doc.company.footerNote = input.footerNote.trim();
     doc.company.idokladClientId = clientId;
     doc.company.idokladClientSecret = secret;
   });
@@ -399,6 +422,8 @@ export async function readCompanyPublic() {
   const { idokladClientSecret: _secret, ...company } = doc.company;
   return {
     ...company,
+    vatNote: company.vatNote ?? "",
+    footerNote: company.footerNote ?? "",
     hasIdokladSecret: Boolean(_secret),
   };
 }

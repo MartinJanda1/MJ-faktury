@@ -28,7 +28,10 @@ export default function HelpPage() {
         <section className="grid gap-2">
           <h2 className="text-base font-medium">Úprava a tisk</h2>
           <ul className="list-disc space-y-1.5 pl-5 text-muted-foreground">
-            <li>Platební údaje firmy nastavíte v <Link href="/nastaveni" className="text-foreground underline-offset-2 hover:underline">Nastavení</Link> — IBAN doplní účet a SWIFT.</li>
+            <li>
+              Údaje firmy (účet, IBAN, SWIFT, poznámka „Nejsme plátci DPH“, patička) nastavíte v{" "}
+              <Link href="/nastaveni" className="text-foreground underline-offset-2 hover:underline">Nastavení</Link>.
+            </li>
             <li>PDF stáhnete z detailu dokladu nebo ze stránky tisku (včetně QR platby převodem).</li>
             <li>
               Koncept, vystavené, částečně uhrazené i po splatnosti jdou upravit. Uhrazený doklad je jen ke čtení —

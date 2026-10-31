@@ -91,6 +91,7 @@ export function mapSupplier(raw: Record<string, unknown> | null): SupplierDraft 
     country: "Česká republika",
     email: text(raw.Email),
     phone: text(raw.Phone) || text(raw.Mobile),
+    vatNote: "",
     bankAccount: text(raw.AccountNumber),
     bankCode: text(raw.BankCode),
     iban: text(raw.Iban),

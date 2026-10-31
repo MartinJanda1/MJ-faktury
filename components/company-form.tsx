@@ -19,6 +19,8 @@ export function CompanyForm({ company }: { company: Company }) {
   const [country, setCountry] = useState(company.country || "Česká republika");
   const [email, setEmail] = useState(company.email);
   const [phone, setPhone] = useState(company.phone);
+  const [vatNote, setVatNote] = useState(company.vatNote || "");
+  const [footerNote, setFooterNote] = useState(company.footerNote || "");
 
   return (
     <form action={action} className="grid gap-6">
@@ -46,6 +48,7 @@ export function CompanyForm({ company }: { company: Company }) {
               setCity(party.city);
               setZip(party.zip);
               setCountry(party.country || "Česká republika");
+              setVatNote(party.vatNote || (party.vatPayer ? "" : "Nejsme plátci DPH"));
             }}
           />
         </div>
@@ -67,6 +70,26 @@ export function CompanyForm({ company }: { company: Company }) {
         <Field label="Stát">
           <Input name="country" value={country} onChange={(event) => setCountry(event.target.value)} />
         </Field>
+        <Field label="Poznámka k DPH">
+          <Input
+            name="vatNote"
+            value={vatNote}
+            onChange={(event) => setVatNote(event.target.value)}
+            placeholder="Nejsme plátci DPH"
+          />
+        </Field>
+        <Field label="Patička dokladu">
+          <Input
+            name="footerNote"
+            value={footerNote}
+            onChange={(event) => setFooterNote(event.target.value)}
+            placeholder="Podnikatel je zapsán v živnostenském rejstříku"
+          />
+        </Field>
+        <p className="sm:col-span-2 text-xs text-muted-foreground">
+          Poznámka k DPH se zobrazí u dodavatele na faktuře. Patička na spodním okraji dokladu (klasická i iDoklad šablona).
+        </p>
+        <h3 className="font-heading text-base sm:col-span-2">Bankovní údaje</h3>
         <BankAutofillFields
           bankAccount={company.bankAccount}
           bankCode={company.bankCode}

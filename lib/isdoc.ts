@@ -57,6 +57,7 @@ function supplierFromParty(value: ReturnType<typeof party>, payment: Record<stri
   return {
     ...value,
     country: value.country || "Česká republika",
+    vatNote: "",
     bankAccount: text(details.ID),
     bankCode: text(details.BankCode),
     iban: text(details.IBAN),

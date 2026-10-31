@@ -13,6 +13,8 @@ export type SupplierDraft = {
   country: string;
   email: string;
   phone: string;
+  /** Visible note under supplier, e.g. "Nejsme plátci DPH". */
+  vatNote: string;
   bankAccount: string;
   bankCode: string;
   iban: string;
@@ -109,6 +111,8 @@ export type Invoice = Omit<InvoiceDraft, "items" | "supplier" | "customerExterna
 };
 
 export type Company = SupplierDraft & {
+  /** Footer line on the invoice document (classic + iDoklad). */
+  footerNote: string;
   idokladClientId: string;
   hasIdokladSecret: boolean;
 };

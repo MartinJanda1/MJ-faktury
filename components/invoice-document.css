@@ -145,6 +145,27 @@
   font-size: 13px;
 }
 
+.invoice-document .supplier-vat-note {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 12px;
+  font-style: italic;
+  color: #444;
+}
+
+.invoice-document .inv-footer-note {
+  margin-top: 1.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--invoice-muted-line);
+  text-align: center;
+}
+
+.invoice-document .inv-footer-note p {
+  margin: 0;
+  font-size: 12px;
+  color: #555;
+}
+
 .invoice-document .contact-block-title {
   display: block;
   margin: 0.5rem 0 0.25rem;
@@ -492,6 +513,21 @@
 
 .invoice-document.layout-idoklad .party-name {
   font-weight: 400;
+}
+
+.invoice-document.layout-idoklad .supplier-vat-note {
+  margin-top: 0.5rem;
+  color: #404040;
+}
+
+.invoice-document.layout-idoklad .inv-footer-note {
+  margin-top: 2rem;
+  border-top: 0;
+  padding-top: 0;
+}
+
+.invoice-document.layout-idoklad .inv-footer-note p {
+  color: #525252;
 }
 
 .invoice-document.layout-idoklad .contact-block-title {
