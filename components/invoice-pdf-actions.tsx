@@ -148,7 +148,8 @@ async function downloadPdfWithHtml2pdf(filename: string): Promise<void> {
   window.scrollTo(0, 0);
 
   const options = {
-    margin: [0, 0, 10, 0] as [number, number, number, number],
+    // Zero margins so the A4-tall #invoice-document (with bottom-pinned footer) maps 1:1
+    margin: [0, 0, 0, 0] as [number, number, number, number],
     filename,
     image: { type: "jpeg" as const, quality: 0.95 },
     html2canvas: {

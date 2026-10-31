@@ -338,6 +338,9 @@ export async function InvoiceDocument({ invoice, company, layout: layoutProp, sh
         </div>
       </section>
 
+      {/* Flex-grow spacer pins footers to the A4 page bottom when content is short. */}
+      <div className="inv-page-spacer" aria-hidden="true" />
+
       {company.footerNote ? (
         <footer className="inv-footer-note">
           <p>{company.footerNote}</p>

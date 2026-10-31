@@ -175,8 +175,11 @@
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
     width: 100% !important;
     max-width: 190mm !important;
+    min-height: calc(297mm - 20mm) !important;
     margin: 0 !important;
     box-shadow: none !important;
     background: #fff !important;

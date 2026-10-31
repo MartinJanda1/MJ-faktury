@@ -14,6 +14,8 @@
   --invoice-number-border: #b0b0b0;
 
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   width: 210mm;
   max-width: 100%;
   min-height: 297mm;
@@ -25,6 +27,7 @@
   line-height: 1.45;
   padding: 12mm 10mm 14mm 8mm;
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.12);
+  position: relative;
 }
 
 .invoice-document *,
@@ -153,8 +156,17 @@
   color: #444;
 }
 
+/* Pushes company note + attribution to the bottom edge of the A4 box */
+.invoice-document .inv-page-spacer {
+  flex: 1 1 auto;
+  min-height: 1.25rem;
+  width: 100%;
+  pointer-events: none;
+}
+
 .invoice-document .inv-footer-note {
-  margin-top: 1.75rem;
+  flex-shrink: 0;
+  margin-top: 0.5rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--invoice-muted-line);
   text-align: center;
@@ -166,10 +178,12 @@
   color: #555;
 }
 
-/* Soft product attribution — same on every layout variant */
+/* Soft product attribution — pinned to bottom of every layout variant */
 .invoice-document .inv-app-attribution {
-  margin-top: 1.25rem;
-  padding-top: 0.5rem;
+  flex-shrink: 0;
+  margin-top: 0.65rem;
+  padding-top: 0;
+  padding-bottom: 0;
   text-align: center;
 }
 
@@ -452,7 +466,10 @@
 .invoice-document.pdf-exporting,
 .pdf-exporting .invoice-document {
   box-shadow: none;
-  min-height: 0;
+  /* Keep A4 min-height so flex spacer pins attribution for html2pdf capture */
+  min-height: 297mm;
+  display: flex;
+  flex-direction: column;
   padding: 8mm 8mm 6mm 6mm;
 }
 
@@ -488,10 +505,19 @@
   }
 
   .invoice-document {
+    display: flex !important;
+    flex-direction: column !important;
     width: 100% !important;
-    min-height: 0 !important;
+    /* Fill printable area (@page margin 10mm → 277mm) so spacer pins footer */
+    min-height: calc(297mm - 20mm) !important;
+    height: auto !important;
     padding: 0 !important;
     box-shadow: none !important;
+  }
+
+  .invoice-document .inv-page-spacer {
+    flex: 1 1 auto !important;
+    min-height: 0.5rem !important;
   }
 
   .no-print,
@@ -2225,7 +2251,8 @@
 
   .invoice-document {
     width: 210mm;
-    min-height: 0;
+    /* Keep A4 preview height so attribution stays page-bottom on narrow screens */
+    min-height: 297mm;
   }
 
   .invoice-document .payment-bar {
