@@ -78,6 +78,7 @@ function ShellChrome({ children }: { children: React.ReactNode }) {
             </div>
           ) : null}
           <p className="text-xs leading-5 text-white/55">Data zůstávají v souboru na tomto počítači.</p>
+          <p className="text-right text-xs leading-5 text-white/55">Verze 0.1.1</p>
         </div>
       </aside>
 
