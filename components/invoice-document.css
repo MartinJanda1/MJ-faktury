@@ -255,6 +255,11 @@
   line-height: 1.4;
 }
 
+.invoice-document .payment-line-account,
+.invoice-document .payment-line-account strong {
+  font-weight: 700;
+}
+
 .invoice-document .payment-line.indent {
   padding-left: 0.625rem;
 }
@@ -487,6 +492,41 @@
   background-color: #00b5c8 !important;
 }
 
+/*
+ * A4 ≈ 794 CSS px at 96dpi, so max-width:860px would stack payment columns
+ * during print / html2pdf capture. Keep the desktop 3-column bar.
+ */
+.pdf-exporting .payment-bar,
+.invoice-document.pdf-exporting .payment-bar {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+}
+
+.pdf-exporting .invoice-document.layout-modern .payment-col + .payment-col,
+.invoice-document.layout-modern.pdf-exporting .payment-col + .payment-col,
+.pdf-exporting .invoice-document.layout-elegant .payment-col + .payment-col,
+.invoice-document.layout-elegant.pdf-exporting .payment-col + .payment-col,
+.pdf-exporting .invoice-document.layout-minimal .payment-col + .payment-col,
+.invoice-document.layout-minimal.pdf-exporting .payment-col + .payment-col {
+  border-top: 0 !important;
+  padding-left: 1.25rem !important;
+  padding-top: 0 !important;
+}
+
+.pdf-exporting .invoice-document.layout-modern .payment-col + .payment-col,
+.invoice-document.layout-modern.pdf-exporting .payment-col + .payment-col {
+  border-left: 1px solid var(--modern-rule) !important;
+}
+
+.pdf-exporting .invoice-document.layout-elegant .payment-col + .payment-col,
+.invoice-document.layout-elegant.pdf-exporting .payment-col + .payment-col {
+  border-left: 1px solid var(--elegant-rule) !important;
+}
+
+.pdf-exporting .invoice-document.layout-minimal .payment-col + .payment-col,
+.invoice-document.layout-minimal.pdf-exporting .payment-col + .payment-col {
+  border-left: 1px solid var(--minimal-rule) !important;
+}
+
 .pdf-exporting .payment-bar,
 .pdf-exporting .payment-bar *,
 .pdf-exporting .recap-bar,
@@ -538,6 +578,30 @@
     background-color: #00b5c8 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  .invoice-document .payment-bar {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+  }
+
+  .invoice-document.layout-modern .payment-col + .payment-col,
+  .invoice-document.layout-elegant .payment-col + .payment-col,
+  .invoice-document.layout-minimal .payment-col + .payment-col {
+    border-top: 0 !important;
+    padding-left: 1.25rem !important;
+    padding-top: 0 !important;
+  }
+
+  .invoice-document.layout-modern .payment-col + .payment-col {
+    border-left: 1px solid var(--modern-rule) !important;
+  }
+
+  .invoice-document.layout-elegant .payment-col + .payment-col {
+    border-left: 1px solid var(--elegant-rule) !important;
+  }
+
+  .invoice-document.layout-minimal .payment-col + .payment-col {
+    border-left: 1px solid var(--minimal-rule) !important;
   }
 
   .invoice-document .payment-bar,
@@ -700,6 +764,11 @@
 
 .invoice-document.layout-modern .payment-line > span:first-child {
   color: var(--modern-muted);
+}
+
+.invoice-document.layout-modern .payment-line-account strong {
+  color: #1a1a1a;
+  font-weight: 700;
 }
 
 .invoice-document.layout-modern .payment-line.indent {

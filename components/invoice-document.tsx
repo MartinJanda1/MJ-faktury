@@ -59,14 +59,41 @@ export async function InvoiceDocument({ invoice, company, layout: layoutProp, sh
   const layout = normalizeLayout(layoutProp ?? DEFAULT_LAYOUT);
   const paymentMethod = (invoice.paymentMethod || "").trim() || DEFAULT_PAYMENT_METHOD;
   const wantsQr = showQr !== false && isTransferPayment(paymentMethod) && amount > 0;
+  const paymentMessage = [invoice.number, invoice.customerName].filter(Boolean).join(" ") || "Faktura";
+  const sidMessage =
+    (invoice.description || "").trim() ||
+    invoice.items.find((item) => (item.name || "").trim())?.name ||
+    invoice.number ||
+    "";
   const spayd = wantsQr
     ? buildSpaydString({
         iban,
         amount,
+        bic: company.swift,
         variableSymbol: invoice.variableSymbol,
         constantSymbol: invoice.constantSymbol,
         dueDate: invoice.dueDate,
-        message: invoice.number ? `Faktura ${invoice.number}` : "Faktura",
+        message: paymentMessage,
+        invoice: {
+          id: invoice.number || invoice.id,
+          issueDate: invoice.issueDate,
+          amount,
+          message: sidMessage,
+          variableSymbol: invoice.variableSymbol,
+          orderNumber: invoice.orderNumber,
+          dueDate: invoice.dueDate,
+          taxDate: invoice.taxDate || invoice.issueDate,
+          supplierIco: company.ico,
+          supplierDic: company.dic,
+          customerIco: invoice.customerIco,
+          customerDic: invoice.customerDic,
+          nonVatPayer: hideVat,
+          items: invoice.items.map((item) => ({
+            vatRate: item.vatRate,
+            totalNet: item.totalNet,
+            totalVat: item.totalVat,
+          })),
+        },
       })
     : null;
   // QR is automatic for bank transfer whenever SPAYD can be built — no separate toggle.
@@ -174,9 +201,9 @@ export async function InvoiceDocument({ invoice, company, layout: layoutProp, sh
         <div className="section-body">
           <div className="payment-bar">
             <div className="payment-col">
-              <div className="payment-line">
+              <div className="payment-line payment-line-account">
                 <span>Bankovní účet:</span>
-                <span>{account || "—"}</span>
+                <strong>{account || "—"}</strong>
               </div>
               <div className="payment-line">
                 <span>IBAN:</span>
