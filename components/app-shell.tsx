@@ -6,6 +6,7 @@ import { BarChart3, CircleHelp, Download, FileText, LayoutDashboard, LogOut, Set
 import { AccessGate, LockedPlaceholder, useAccess } from "@/components/access-gate";
 import { Button } from "@/components/ui/button";
 import { cn } from "cn";
+import packageJson from "@/package.json";
 
 const links = [
   { href: "/", label: "Přehled", icon: LayoutDashboard },
@@ -24,7 +25,7 @@ function isActive(pathname: string, href: string) {
 
 function ShellChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { unlocked, status, ico, logout } = useAccess();
+  const { unlocked, status, ico, companyName, logout } = useAccess();
   const showContent = unlocked;
 
   return (
@@ -64,7 +65,12 @@ function ShellChrome({ children }: { children: React.ReactNode }) {
         <div className="space-y-3 px-5 py-5">
           {unlocked && ico ? (
             <div className="space-y-2">
-              <p className="text-xs text-white/55">Přihlášeno IČO {ico}</p>
+              {companyName ? (
+                <p className="truncate text-sm font-medium text-white/90" title={companyName}>
+                  {companyName}
+                </p>
+              ) : null}
+              <p className="text-xs text-white/55">IČO {ico}</p>
               <Button
                 type="button"
                 variant="ghost"
@@ -73,12 +79,12 @@ function ShellChrome({ children }: { children: React.ReactNode }) {
                 className="h-auto w-full justify-start gap-2 px-0 py-0 text-xs text-white/70 hover:bg-transparent hover:text-white"
               >
                 <LogOut className="size-3.5" />
-                Odhlásit / změnit IČO
+                Odhlásit (jiná firma)
               </Button>
             </div>
           ) : null}
           <p className="text-xs leading-5 text-white/55">Data zůstávají v souboru na tomto počítači.</p>
-          <p className="text-right text-xs leading-5 text-white/55 font-bold">Verze 0.1.1</p>
+          <p className="text-right text-xs leading-5 font-bold text-white/55">Verze {packageJson.version}</p>
         </div>
       </aside>
 
@@ -93,7 +99,7 @@ function ShellChrome({ children }: { children: React.ReactNode }) {
             </Link>
             {unlocked ? (
               <Button type="button" variant="ghost" size="sm" onClick={logout} className="text-xs text-muted-foreground">
-                Změnit IČO
+                Odhlásit
               </Button>
             ) : null}
           </div>

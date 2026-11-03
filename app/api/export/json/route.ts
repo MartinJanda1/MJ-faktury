@@ -2,16 +2,23 @@ import { NextResponse } from "next/server";
 import { connection } from "next/server";
 import { loadStore } from "@/lib/store";
 import { withInvoiceDefaults } from "@/lib/invoice-fields";
+import { requireTenantId } from "@/lib/tenant-session";
 
 export const dynamic = "force-dynamic";
 
-/** Backup export compatible with faktura-app JSON import. */
+/** Backup export compatible with faktura-app JSON import (active tenant only). */
 export async function GET() {
   await connection();
+  const tenantId = await requireTenantId();
   const doc = await loadStore();
-  const invoices = doc.invoices.map((invoice) => {
+  const tenant = doc.tenants.find((row) => row.id === tenantId);
+  if (!tenant) {
+    return NextResponse.json({ error: "Nejste přihlášeni k firmě." }, { status: 401 });
+  }
+
+  const invoices = tenant.invoices.map((invoice) => {
     const full = withInvoiceDefaults(invoice);
-    const items = doc.items
+    const items = tenant.items
       .filter((item) => item.invoiceId === invoice.id)
       .sort((a, b) => a.position - b.position)
       .map((item) => ({
@@ -21,9 +28,9 @@ export async function GET() {
         unitPrice: item.unitPrice,
       }));
     const account =
-      doc.company.bankAccount && doc.company.bankCode
-        ? `${doc.company.bankAccount}/${doc.company.bankCode}`
-        : doc.company.bankAccount || "";
+      tenant.company.bankAccount && tenant.company.bankCode
+        ? `${tenant.company.bankAccount}/${tenant.company.bankCode}`
+        : tenant.company.bankAccount || "";
     return {
       id: invoice.id,
       invoiceNumber: full.number,
@@ -37,22 +44,22 @@ export async function GET() {
       },
       payment: {
         accountNumber: account,
-        iban: doc.company.iban || "",
-        swift: doc.company.swift || "",
+        iban: tenant.company.iban || "",
+        swift: tenant.company.swift || "",
         variableSymbol: full.variableSymbol || "",
         constantSymbol: full.constantSymbol || "",
         method: full.paymentMethod || "Převodem",
       },
       supplier: {
-        name: doc.company.name,
-        ico: doc.company.ico,
-        dic: doc.company.dic,
-        address: doc.company.street,
-        city: [doc.company.zip, doc.company.city].filter(Boolean).join(" "),
-        country: doc.company.country,
-        email: doc.company.email,
-        phone: doc.company.phone,
-        vatNote: doc.company.vatNote,
+        name: tenant.company.name,
+        ico: tenant.company.ico,
+        dic: tenant.company.dic,
+        address: tenant.company.street,
+        city: [tenant.company.zip, tenant.company.city].filter(Boolean).join(" "),
+        country: tenant.company.country,
+        email: tenant.company.email,
+        phone: tenant.company.phone,
+        vatNote: tenant.company.vatNote,
       },
       customer: {
         name: full.customerName,

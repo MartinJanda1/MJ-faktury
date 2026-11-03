@@ -33,8 +33,8 @@ export function AresLookup({ ico, onLoaded, label = "Načíst z ARES" }: Props) 
   }
 
   return (
-    <div className="grid gap-1">
-      <Button type="button" variant="outline" size="sm" onClick={load} disabled={pending || !ico.trim()}>
+    <div className="grid shrink-0 gap-1">
+      <Button type="button" className="whitespace-nowrap" onClick={load} disabled={pending || !ico.trim()}>
         {pending ? "Načítám…" : label}
       </Button>
       {error ? (

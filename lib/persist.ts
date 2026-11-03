@@ -1,8 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { fillBlankCustomerAddress } from "./customer-address";
+import { normalizeIco } from "./ico";
 import { withInvoiceDefaults } from "./invoice-fields";
 import { lineTotals, roundMoney } from "./money";
-import { loadStore, updateStore, type StoreDocument } from "./store";
+import {
+  emptyCompany,
+  emptyTenant,
+  loadStore,
+  publicCompany,
+  updateStore,
+  type StoreDocument,
+  type Tenant,
+} from "./store";
+import { getTenantIdFromCookie, requireTenantId } from "./tenant-session";
 import type {
   Customer,
   CustomerDraft,
@@ -14,6 +24,23 @@ import type {
   ItemDraft,
   SupplierDraft,
 } from "./types";
+
+async function withActiveTenant<T>(mutator: (tenant: Tenant, doc: StoreDocument) => T | Promise<T>): Promise<T> {
+  const tenantId = await requireTenantId();
+  return updateStore(async (doc) => {
+    const tenant = doc.tenants.find((row) => row.id === tenantId);
+    if (!tenant) throw new Error("Firma není přihlášená.");
+    return mutator(tenant, doc);
+  });
+}
+
+/** Reads tolerate missing session (locked UI still renders RSC children). */
+async function tryLoadActiveTenant(): Promise<Tenant | null> {
+  const tenantId = await getTenantIdFromCookie();
+  if (!tenantId) return null;
+  const doc = await loadStore();
+  return doc.tenants.find((row) => row.id === tenantId) ?? null;
+}
 
 function blankCustomer(partial: Partial<CustomerDraft> & Pick<CustomerDraft, "name" | "source">): CustomerDraft {
   return {
@@ -32,16 +59,16 @@ function blankCustomer(partial: Partial<CustomerDraft> & Pick<CustomerDraft, "na
   };
 }
 
-function findCustomer(doc: StoreDocument, draft: CustomerDraft): Customer | undefined {
+function findCustomer(tenant: Tenant, draft: CustomerDraft): Customer | undefined {
   if (draft.externalId) {
-    const byExternal = doc.customers.find((customer) => customer.externalId === draft.externalId);
+    const byExternal = tenant.customers.find((customer) => customer.externalId === draft.externalId);
     if (byExternal) return byExternal;
   }
   if (draft.ico) {
-    const byIco = doc.customers.find((customer) => customer.ico === draft.ico);
+    const byIco = tenant.customers.find((customer) => customer.ico === draft.ico);
     if (byIco) return byIco;
   }
-  return doc.customers.find((customer) => customer.name.toLowerCase() === draft.name.toLowerCase());
+  return tenant.customers.find((customer) => customer.name.toLowerCase() === draft.name.toLowerCase());
 }
 
 function resolvedItems(items: ItemDraft[]) {
@@ -69,27 +96,27 @@ function resolvedItems(items: ItemDraft[]) {
   });
 }
 
-function findCustomerId(doc: StoreDocument, draft: InvoiceDraft): string | null {
+function findCustomerId(tenant: Tenant, draft: InvoiceDraft): string | null {
   if (draft.customerExternalId) {
-    const match = doc.customers.find((customer) => customer.externalId === draft.customerExternalId);
+    const match = tenant.customers.find((customer) => customer.externalId === draft.customerExternalId);
     if (match) return match.id;
   }
   if (draft.customerIco) {
-    const match = doc.customers.find((customer) => customer.ico === draft.customerIco);
+    const match = tenant.customers.find((customer) => customer.ico === draft.customerIco);
     if (match) return match.id;
   }
   if (draft.customerName) {
-    const match = doc.customers.find((customer) => customer.name.toLowerCase() === draft.customerName.toLowerCase());
+    const match = tenant.customers.find((customer) => customer.name.toLowerCase() === draft.customerName.toLowerCase());
     if (match) return match.id;
   }
   return null;
 }
 
-function upsertCustomerInDoc(doc: StoreDocument, draft: CustomerDraft): { id: string; created: boolean } {
+function upsertCustomerInDoc(tenant: Tenant, draft: CustomerDraft): { id: string; created: boolean } {
   const customer = blankCustomer(draft);
   if (!customer.name) throw new Error("Odběratel nemá název.");
   const now = new Date().toISOString();
-  const existing = findCustomer(doc, customer);
+  const existing = findCustomer(tenant, customer);
   if (existing) {
     existing.externalId = customer.externalId ?? existing.externalId;
     existing.source = customer.source;
@@ -107,7 +134,7 @@ function upsertCustomerInDoc(doc: StoreDocument, draft: CustomerDraft): { id: st
     return { id: existing.id, created: false };
   }
   const id = randomUUID();
-  doc.customers.push({
+  tenant.customers.push({
     id,
     ...customer,
     createdAt: now,
@@ -117,7 +144,7 @@ function upsertCustomerInDoc(doc: StoreDocument, draft: CustomerDraft): { id: st
 }
 
 function upsertInvoiceInDoc(
-  doc: StoreDocument,
+  tenant: Tenant,
   draft: InvoiceDraft,
   preferredId?: string | null,
   linkedCustomerId?: string | null,
@@ -130,9 +157,9 @@ function upsertInvoiceInDoc(
   const totalVat = roundMoney(items.reduce((sum, item) => sum + item.totalVat, 0));
   const totalGross = roundMoney(items.reduce((sum, item) => sum + item.totalGross, 0));
   const now = new Date().toISOString();
-  let customerId = linkedCustomerId || findCustomerId(doc, draft);
+  let customerId = linkedCustomerId || findCustomerId(tenant, draft);
   if (!customerId && draft.customerName.trim()) {
-    customerId = upsertCustomerInDoc(doc, {
+    customerId = upsertCustomerInDoc(tenant, {
       externalId: draft.customerExternalId,
       source: draft.source,
       name: draft.customerName,
@@ -149,20 +176,21 @@ function upsertInvoiceInDoc(
   }
 
   let existing =
-    (preferredId ? doc.invoices.find((invoice) => invoice.id === preferredId) : undefined) ||
-    (draft.externalId ? doc.invoices.find((invoice) => invoice.externalId === draft.externalId) : undefined) ||
-    doc.invoices.find((invoice) => invoice.number === number && invoice.kind === draft.kind);
+    (preferredId ? tenant.invoices.find((invoice) => invoice.id === preferredId) : undefined) ||
+    (draft.externalId ? tenant.invoices.find((invoice) => invoice.externalId === draft.externalId) : undefined) ||
+    tenant.invoices.find((invoice) => invoice.number === number && invoice.kind === draft.kind);
 
-  if (preferredId && !doc.invoices.some((invoice) => invoice.id === preferredId)) {
+  if (preferredId && !tenant.invoices.some((invoice) => invoice.id === preferredId)) {
     throw new Error("Doklad už v evidenci není.");
   }
   if (preferredId) {
-    const clash = doc.invoices.find((invoice) => invoice.number === number && invoice.kind === draft.kind && invoice.id !== preferredId);
+    const clash = tenant.invoices.find(
+      (invoice) => invoice.number === number && invoice.kind === draft.kind && invoice.id !== preferredId,
+    );
     if (clash) throw new Error(`Doklad ${number} už existuje.`);
   }
 
-  // When picking from the address book, copy any missing address into the invoice snapshot.
-  const linkedCustomer = customerId ? doc.customers.find((customer) => customer.id === customerId) : undefined;
+  const linkedCustomer = customerId ? tenant.customers.find((customer) => customer.id === customerId) : undefined;
   const buyer = fillBlankCustomerAddress(
     {
       customerStreet: draft.customerStreet,
@@ -215,16 +243,16 @@ function upsertInvoiceInDoc(
   } else {
     id = randomUUID();
     created = true;
-    doc.invoices.push({
+    tenant.invoices.push({
       id,
       ...header,
       createdAt: now,
     });
   }
 
-  doc.items = doc.items.filter((item) => item.invoiceId !== id);
+  tenant.items = tenant.items.filter((item) => item.invoiceId !== id);
   for (const item of items) {
-    doc.items.push({
+    tenant.items.push({
       id: randomUUID(),
       invoiceId: id!,
       ...item,
@@ -239,9 +267,8 @@ function fillBlank(current: string | undefined, next: string | undefined): strin
   return (next ?? "").trim();
 }
 
-/** Fill empty company identity / bank / VAT note fields from an imported supplier. */
-function fillCompanyIfEmptyInDoc(doc: StoreDocument, supplier: SupplierDraft) {
-  const company = doc.company;
+function fillCompanyIfEmptyInDoc(tenant: Tenant, supplier: SupplierDraft) {
+  const company = tenant.company;
   if (!company.name.trim()) {
     company.name = supplier.name.trim();
     company.ico = fillBlank(company.ico, supplier.ico);
@@ -261,22 +288,54 @@ function fillCompanyIfEmptyInDoc(doc: StoreDocument, supplier: SupplierDraft) {
   if (company.footerNote == null) company.footerNote = "";
 }
 
+export async function findTenantByIco(ico: string): Promise<Tenant | null> {
+  const normalized = normalizeIco(ico);
+  if (!normalized) return null;
+  const doc = await loadStore();
+  return doc.tenants.find((tenant) => normalizeIco(tenant.company.ico) === normalized) ?? null;
+}
+
+export async function readAccessStatus(): Promise<{ registered: boolean }> {
+  const doc = await loadStore();
+  return {
+    registered: doc.tenants.some((tenant) => Boolean(tenant.company.accessPasswordHash)),
+  };
+}
+
+export async function resumeTenantSession(
+  tenantId: string,
+  ico: string,
+): Promise<{ tenantId: string; ico: string; companyName: string } | null> {
+  const doc = await loadStore();
+  const tenant = doc.tenants.find((row) => row.id === tenantId);
+  if (!tenant?.company.accessPasswordHash) return null;
+  const storedIco = normalizeIco(tenant.company.ico);
+  if (!storedIco || storedIco !== normalizeIco(ico)) return null;
+  return { tenantId: tenant.id, ico: storedIco, companyName: tenant.company.name.trim() };
+}
+
 export async function upsertCustomer(draft: CustomerDraft): Promise<{ id: string; created: boolean }> {
-  return updateStore((doc) => upsertCustomerInDoc(doc, draft));
+  return withActiveTenant((tenant) => upsertCustomerInDoc(tenant, draft));
 }
 
 export async function saveManualCustomer(id: string | null, draft: CustomerDraft): Promise<string> {
-  return updateStore((doc) => {
+  return withActiveTenant((tenant) => {
     const customer = blankCustomer({ ...draft, source: "manual", externalId: null });
     if (!customer.name) throw new Error("Odběratel nemá název.");
     const now = new Date().toISOString();
     if (id) {
-      const existing = doc.customers.find((row) => row.id === id);
+      const existing = tenant.customers.find((row) => row.id === id);
       if (!existing) throw new Error("Odběratel už v evidenci není.");
-      Object.assign(existing, customer, { id, updatedAt: now, createdAt: existing.createdAt, externalId: existing.externalId, source: existing.source === "manual" ? "manual" : existing.source });
+      Object.assign(existing, customer, {
+        id,
+        updatedAt: now,
+        createdAt: existing.createdAt,
+        externalId: existing.externalId,
+        source: existing.source === "manual" ? "manual" : existing.source,
+      });
       return id;
     }
-    return upsertCustomerInDoc(doc, customer).id;
+    return upsertCustomerInDoc(tenant, customer).id;
   });
 }
 
@@ -285,11 +344,15 @@ export async function upsertInvoice(
   preferredId?: string | null,
   linkedCustomerId?: string | null,
 ): Promise<{ id: string; created: boolean }> {
-  return updateStore((doc) => upsertInvoiceInDoc(doc, draft, preferredId, linkedCustomerId));
+  return withActiveTenant((tenant) => upsertInvoiceInDoc(tenant, draft, preferredId, linkedCustomerId));
 }
 
-export async function applyImport(customers: CustomerDraft[], invoices: InvoiceDraft[], supplier: SupplierDraft | null): Promise<ImportCounts> {
-  return updateStore((doc) => {
+export async function applyImport(
+  customers: CustomerDraft[],
+  invoices: InvoiceDraft[],
+  supplier: SupplierDraft | null,
+): Promise<ImportCounts> {
+  return withActiveTenant((tenant) => {
     const counts: ImportCounts = {
       customersCreated: 0,
       customersUpdated: 0,
@@ -302,7 +365,7 @@ export async function applyImport(customers: CustomerDraft[], invoices: InvoiceD
         counts.warnings.push("Kontakt bez názvu byl přeskočen.");
         continue;
       }
-      const result = upsertCustomerInDoc(doc, customer);
+      const result = upsertCustomerInDoc(tenant, customer);
       if (result.created) counts.customersCreated += 1;
       else counts.customersUpdated += 1;
     }
@@ -312,7 +375,7 @@ export async function applyImport(customers: CustomerDraft[], invoices: InvoiceD
         continue;
       }
       try {
-        const result = upsertInvoiceInDoc(doc, invoice);
+        const result = upsertInvoiceInDoc(tenant, invoice);
         if (result.created) counts.invoicesCreated += 1;
         else counts.invoicesUpdated += 1;
       } catch (error) {
@@ -321,60 +384,60 @@ export async function applyImport(customers: CustomerDraft[], invoices: InvoiceD
     }
     if (
       supplier &&
-      (supplier.name.trim() ||
-        supplier.bankAccount.trim() ||
-        supplier.iban.trim() ||
-        supplier.vatNote.trim())
+      (supplier.name.trim() || supplier.bankAccount.trim() || supplier.iban.trim() || supplier.vatNote.trim())
     ) {
-      fillCompanyIfEmptyInDoc(doc, supplier);
+      fillCompanyIfEmptyInDoc(tenant, supplier);
     }
     return counts;
   });
 }
 
 export async function loadItems(invoiceId: string): Promise<InvoiceItem[]> {
-  const doc = await loadStore();
-  return doc.items.filter((item) => item.invoiceId === invoiceId).sort((a, b) => a.position - b.position);
+  const tenant = await tryLoadActiveTenant();
+  if (!tenant) return [];
+  return tenant.items.filter((item) => item.invoiceId === invoiceId).sort((a, b) => a.position - b.position);
 }
 
 export async function getCustomerRow(id: string): Promise<Customer | null> {
-  const doc = await loadStore();
-  return doc.customers.find((customer) => customer.id === id) ?? null;
+  const tenant = await tryLoadActiveTenant();
+  if (!tenant) return null;
+  return tenant.customers.find((customer) => customer.id === id) ?? null;
 }
 
 export async function getInvoiceRow(id: string): Promise<Invoice | null> {
-  const doc = await loadStore();
-  const invoice = doc.invoices.find((row) => row.id === id);
+  const tenant = await tryLoadActiveTenant();
+  if (!tenant) return null;
+  const invoice = tenant.invoices.find((row) => row.id === id);
   if (!invoice) return null;
   const linkedCustomer = invoice.customerId
-    ? doc.customers.find((customer) => customer.id === invoice.customerId)
+    ? tenant.customers.find((customer) => customer.id === invoice.customerId)
     : undefined;
   const withAddress = fillBlankCustomerAddress(withInvoiceDefaults(invoice), linkedCustomer);
   return {
     ...withAddress,
-    items: doc.items.filter((item) => item.invoiceId === id).sort((a, b) => a.position - b.position),
+    items: tenant.items.filter((item) => item.invoiceId === id).sort((a, b) => a.position - b.position),
   };
 }
 
 export async function deleteCustomer(id: string) {
-  await updateStore((doc) => {
-    doc.customers = doc.customers.filter((customer) => customer.id !== id);
-    for (const invoice of doc.invoices) {
+  await withActiveTenant((tenant) => {
+    tenant.customers = tenant.customers.filter((customer) => customer.id !== id);
+    for (const invoice of tenant.invoices) {
       if (invoice.customerId === id) invoice.customerId = null;
     }
   });
 }
 
 export async function deleteInvoice(id: string) {
-  await updateStore((doc) => {
-    doc.invoices = doc.invoices.filter((invoice) => invoice.id !== id);
-    doc.items = doc.items.filter((item) => item.invoiceId !== id);
+  await withActiveTenant((tenant) => {
+    tenant.invoices = tenant.invoices.filter((invoice) => invoice.id !== id);
+    tenant.items = tenant.items.filter((item) => item.invoiceId !== id);
   });
 }
 
 export async function setInvoicePayment(id: string, paidDate: string | null) {
-  await updateStore((doc) => {
-    const invoice = doc.invoices.find((row) => row.id === id);
+  await withActiveTenant((tenant) => {
+    const invoice = tenant.invoices.find((row) => row.id === id);
     if (!invoice) return;
     invoice.status = paidDate ? "paid" : "issued";
     invoice.paidDate = paidDate;
@@ -383,8 +446,8 @@ export async function setInvoicePayment(id: string, paidDate: string | null) {
 }
 
 export async function setInvoiceStatus(id: string, status: InvoiceStatus, paidDate?: string | null) {
-  await updateStore((doc) => {
-    const invoice = doc.invoices.find((row) => row.id === id);
+  await withActiveTenant((tenant) => {
+    const invoice = tenant.invoices.find((row) => row.id === id);
     if (!invoice) return;
     invoice.status = status;
     if (status === "paid") {
@@ -404,57 +467,121 @@ export type CompanySecrets = {
 };
 
 export async function readCompanySecrets(): Promise<CompanySecrets> {
-  const doc = await loadStore();
-  return { clientId: doc.company.idokladClientId, clientSecret: doc.company.idokladClientSecret };
+  const tenant = await tryLoadActiveTenant();
+  if (!tenant) return { clientId: "", clientSecret: "" };
+  return { clientId: tenant.company.idokladClientId, clientSecret: tenant.company.idokladClientSecret };
 }
 
 export async function saveCompany(
   input: SupplierDraft & { footerNote: string; clientId: string; clientSecret: string | null; clearSecret: boolean },
 ) {
-  await updateStore((doc) => {
-    const secret = input.clearSecret ? "" : input.clientSecret?.trim() || doc.company.idokladClientSecret;
-    const clientId = input.clearSecret ? "" : input.clientId.trim() || doc.company.idokladClientId;
-    doc.company.name = input.name.trim();
-    doc.company.ico = input.ico.trim();
-    doc.company.dic = input.dic.trim();
-    doc.company.street = input.street.trim();
-    doc.company.city = input.city.trim();
-    doc.company.zip = input.zip.trim();
-    doc.company.country = input.country.trim() || "Česká republika";
-    doc.company.email = input.email.trim();
-    doc.company.phone = input.phone.trim();
-    doc.company.vatNote = input.vatNote.trim();
-    doc.company.bankAccount = input.bankAccount.trim();
-    doc.company.bankCode = input.bankCode.trim();
-    doc.company.iban = input.iban.trim();
-    doc.company.swift = input.swift.trim();
-    doc.company.footerNote = input.footerNote.trim();
-    doc.company.idokladClientId = clientId;
-    doc.company.idokladClientSecret = secret;
+  await withActiveTenant((tenant) => {
+    const secret = input.clearSecret ? "" : input.clientSecret?.trim() || tenant.company.idokladClientSecret;
+    const clientId = input.clearSecret ? "" : input.clientId.trim() || tenant.company.idokladClientId;
+    tenant.company.name = input.name.trim();
+    tenant.company.ico = input.ico.trim();
+    tenant.company.dic = input.dic.trim();
+    tenant.company.street = input.street.trim();
+    tenant.company.city = input.city.trim();
+    tenant.company.zip = input.zip.trim();
+    tenant.company.country = input.country.trim() || "Česká republika";
+    tenant.company.email = input.email.trim();
+    tenant.company.phone = input.phone.trim();
+    tenant.company.vatNote = input.vatNote.trim();
+    tenant.company.bankAccount = input.bankAccount.trim();
+    tenant.company.bankCode = input.bankCode.trim();
+    tenant.company.iban = input.iban.trim();
+    tenant.company.swift = input.swift.trim();
+    tenant.company.footerNote = input.footerNote.trim();
+    tenant.company.idokladClientId = clientId;
+    tenant.company.idokladClientSecret = secret;
   });
 }
 
-/** Update only the supplier VAT note (e.g. from the invoice form checkbox). */
 export async function setCompanyVatNote(vatNote: string) {
-  await updateStore((doc) => {
-    doc.company.vatNote = vatNote.trim();
+  await withActiveTenant((tenant) => {
+    tenant.company.vatNote = vatNote.trim();
   });
 }
 
 export async function readCompanyPublic() {
-  const doc = await loadStore();
-  const { idokladClientSecret: _secret, ...company } = doc.company;
-  return {
-    ...company,
-    vatNote: company.vatNote ?? "",
-    footerNote: company.footerNote ?? "",
-    hasIdokladSecret: Boolean(_secret),
-  };
+  const tenant = await tryLoadActiveTenant();
+  if (!tenant) return publicCompany(emptyCompany());
+  return publicCompany(tenant.company);
+}
+
+type AresCompanyParty = {
+  name: string;
+  dic: string;
+  street: string;
+  city: string;
+  zip: string;
+  country: string;
+  vatNote: string;
+};
+
+function applyAresPartyToCompany(
+  tenant: Tenant,
+  ico: string,
+  party: AresCompanyParty,
+  opts?: { passwordHash?: string; overwriteIdentity?: boolean },
+) {
+  tenant.company.ico = ico;
+  if (opts?.passwordHash) tenant.company.accessPasswordHash = opts.passwordHash;
+  const write = opts?.overwriteIdentity
+    ? (current: string, next: string) => next.trim() || current
+    : fillBlank;
+  tenant.company.name = write(tenant.company.name, party.name);
+  tenant.company.dic = write(tenant.company.dic, party.dic);
+  tenant.company.street = write(tenant.company.street, party.street);
+  tenant.company.city = write(tenant.company.city, party.city);
+  tenant.company.zip = write(tenant.company.zip, party.zip);
+  tenant.company.country = write(tenant.company.country, party.country) || "Česká republika";
+  tenant.company.vatNote = write(tenant.company.vatNote, party.vatNote);
+}
+
+/** Register a new firm (tenant). Fails if IČO already has a password. */
+export async function registerCompanyAccess(
+  ico: string,
+  passwordHash: string,
+  party: AresCompanyParty,
+): Promise<{ tenantId: string; ico: string; companyName: string }> {
+  const normalized = normalizeIco(ico);
+  if (!normalized) throw new Error("Zadejte platné IČO (8 číslic).");
+
+  return updateStore((doc) => {
+    const existing = doc.tenants.find((tenant) => normalizeIco(tenant.company.ico) === normalized);
+    if (existing?.company.accessPasswordHash) {
+      throw new Error("Firma s tímto IČO už je registrována. Přihlaste se.");
+    }
+    const tenant = existing ?? emptyTenant();
+    applyAresPartyToCompany(tenant, normalized, party, { passwordHash, overwriteIdentity: true });
+    if (!existing) doc.tenants.push(tenant);
+    return { tenantId: tenant.id, ico: normalized, companyName: tenant.company.name.trim() };
+  });
+}
+
+export async function syncCompanyIcoFromAres(ico: string, party: AresCompanyParty, icoChanged: boolean) {
+  await withActiveTenant((tenant) => {
+    applyAresPartyToCompany(tenant, ico, party, { overwriteIdentity: icoChanged });
+  });
+}
+
+export async function setAccessPasswordHash(passwordHash: string) {
+  await withActiveTenant((tenant) => {
+    tenant.company.accessPasswordHash = passwordHash;
+  });
+}
+
+export async function readAccessPasswordHash(): Promise<string> {
+  const tenant = await tryLoadActiveTenant();
+  return tenant?.company.accessPasswordHash || "";
 }
 
 export async function listCustomerRows(query: string): Promise<Customer[]> {
-  const doc = await loadStore();
-  const rows = [...doc.customers].sort((a, b) => a.name.localeCompare(b.name, "cs"));
+  const tenant = await tryLoadActiveTenant();
+  if (!tenant) return [];
+  const rows = [...tenant.customers].sort((a, b) => a.name.localeCompare(b.name, "cs"));
   if (!query.trim()) return rows;
   const needle = query.trim().toLowerCase();
   return rows.filter((customer) =>
@@ -470,8 +597,9 @@ export async function listInvoiceRows(filter: {
   from?: string;
   to?: string;
 }): Promise<Invoice[]> {
-  const doc = await loadStore();
-  let rows = [...doc.invoices];
+  const tenant = await tryLoadActiveTenant();
+  if (!tenant) return [];
+  let rows = [...tenant.invoices];
   if (filter.kind && filter.kind !== "all") rows = rows.filter((invoice) => invoice.kind === filter.kind);
   if (filter.customerId) rows = rows.filter((invoice) => invoice.customerId === filter.customerId);
   if (filter.from) rows = rows.filter((invoice) => invoice.issueDate >= filter.from!);
@@ -490,39 +618,44 @@ export async function listInvoiceRows(filter: {
 }
 
 export async function listCustomerOptionsForInvoices(): Promise<Array<{ id: string; name: string }>> {
-  const doc = await loadStore();
-  const used = new Set(doc.invoices.map((invoice) => invoice.customerId).filter(Boolean));
-  return doc.customers
+  const tenant = await tryLoadActiveTenant();
+  if (!tenant) return [];
+  const used = new Set(tenant.invoices.map((invoice) => invoice.customerId).filter(Boolean));
+  return tenant.customers
     .filter((customer) => used.has(customer.id))
     .map((customer) => ({ id: customer.id, name: customer.name }))
     .sort((a, b) => a.name.localeCompare(b.name, "cs"));
 }
 
 export async function listInvoiceYears(): Promise<string[]> {
-  const doc = await loadStore();
+  const tenant = await tryLoadActiveTenant();
+  if (!tenant) return [];
   const years = new Set<string>();
-  for (const invoice of doc.invoices) {
+  for (const invoice of tenant.invoices) {
     if (/^\d{4}/.test(invoice.issueDate)) years.add(invoice.issueDate.slice(0, 4));
   }
   return [...years].sort((a, b) => b.localeCompare(a));
 }
 
 export async function listInvoiceNumbers(): Promise<string[]> {
-  const doc = await loadStore();
-  return doc.invoices.map((invoice) => invoice.number);
+  const tenant = await tryLoadActiveTenant();
+  if (!tenant) return [];
+  return tenant.invoices.map((invoice) => invoice.number);
 }
 
 export async function dashboardRows() {
-  const doc = await loadStore();
+  const tenant = await tryLoadActiveTenant();
+  if (!tenant) return { invoices: [], customerCount: 0 };
   return {
-    invoices: doc.invoices.map((invoice) => ({ ...withInvoiceDefaults(invoice), items: [] })),
-    customerCount: doc.customers.length,
+    invoices: tenant.invoices.map((invoice) => ({ ...withInvoiceDefaults(invoice), items: [] })),
+    customerCount: tenant.customers.length,
   };
 }
 
 export async function listInvoicesForStats() {
-  const doc = await loadStore();
-  return doc.invoices
+  const tenant = await tryLoadActiveTenant();
+  if (!tenant) return [];
+  return tenant.invoices
     .map((invoice) => ({
       id: invoice.id,
       number: invoice.number,
@@ -535,7 +668,7 @@ export async function listInvoicesForStats() {
       customerDic: invoice.customerDic,
       totalGross: invoice.totalGross,
       currency: invoice.currency,
-      items: doc.items
+      items: tenant.items
         .filter((item) => item.invoiceId === invoice.id)
         .map((item) => ({
           quantity: item.quantity,
@@ -544,4 +677,14 @@ export async function listInvoicesForStats() {
         })),
     }))
     .sort((a, b) => b.issueDate.localeCompare(a.issueDate) || b.number.localeCompare(a.number));
+}
+
+/** Seed an empty tenant for tests / scripts; sets FAKTURA_TENANT_ID. */
+export async function createEmptyTenantForTests(): Promise<string> {
+  const tenant = emptyTenant();
+  await updateStore((doc) => {
+    doc.tenants.push(tenant);
+  });
+  process.env.FAKTURA_TENANT_ID = tenant.id;
+  return tenant.id;
 }

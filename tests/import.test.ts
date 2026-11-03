@@ -167,7 +167,11 @@ test("ISDOC keeps line items and the customer", () => {
 });
 
 test("repeated import updates the same invoice and customer", async () => {
-  const { applyImport, getInvoiceRow, listCustomerRows, listInvoiceRows } = await import("../lib/persist.ts");
+  process.env.FAKTURA_DB_PATH = path.join(dir, "test.json");
+  delete process.env.FAKTURA_TENANT_ID;
+  const { applyImport, createEmptyTenantForTests, getInvoiceRow, listCustomerRows, listInvoiceRows } =
+    await import("../lib/persist.ts");
+  await createEmptyTenantForTests();
   const first = await applyImport(
     [
       {
@@ -291,7 +295,9 @@ test("faktura-app JSON maps bank payment and non-VAT supplier note into company"
 
   const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), "faktura-json-"));
   process.env.FAKTURA_DB_PATH = path.join(dir2, "test.json");
-  const { applyImport, readCompanyPublic } = await import("../lib/persist.ts");
+  delete process.env.FAKTURA_TENANT_ID;
+  const { applyImport, createEmptyTenantForTests, readCompanyPublic } = await import("../lib/persist.ts");
+  await createEmptyTenantForTests();
   await applyImport(imported.customers, imported.invoices, imported.supplier);
   const company = await readCompanyPublic();
   assert.equal(company.vatNote, "Nejsme plátci DPH");

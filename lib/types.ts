@@ -126,6 +126,8 @@ export type Company = SupplierDraft & {
   footerNote: string;
   idokladClientId: string;
   hasIdokladSecret: boolean;
+  /** True when an access password is stored for the supplier login. */
+  hasAccessPassword: boolean;
 };
 
 export type ImportCounts = {

@@ -35,23 +35,28 @@ export function CustomerForm({ customer }: { customer?: Customer }) {
         <Field label="E-mail">
           <Input name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
         </Field>
-        <div className="grid gap-2">
-          <Field label="IČO">
-            <Input name="ico" value={ico} onChange={(event) => setIco(event.target.value)} />
-          </Field>
-          <AresLookup
-            ico={ico}
-            onLoaded={(party) => {
-              setIco(party.ico);
-              setName(party.name);
-              setDic(party.dic);
-              setStreet(party.street);
-              setCity(party.city);
-              setZip(party.zip);
-              setCountry(party.country || "Česká republika");
-            }}
-          />
-        </div>
+        <Field label="IČO">
+          <div className="flex items-start gap-2">
+            <Input
+              name="ico"
+              className="min-w-0 flex-1"
+              value={ico}
+              onChange={(event) => setIco(event.target.value)}
+            />
+            <AresLookup
+              ico={ico}
+              onLoaded={(party) => {
+                setIco(party.ico);
+                setName(party.name);
+                setDic(party.dic);
+                setStreet(party.street);
+                setCity(party.city);
+                setZip(party.zip);
+                setCountry(party.country || "Česká republika");
+              }}
+            />
+          </div>
+        </Field>
         <Field label="DIČ">
           <Input name="dic" value={dic} onChange={(event) => setDic(event.target.value)} />
         </Field>

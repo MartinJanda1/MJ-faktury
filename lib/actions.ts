@@ -5,13 +5,17 @@ import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { DEFAULT_LAYOUT, normalizeOrderNumber, normalizePaymentMethod } from "./invoice-fields";
 import { todayPrague } from "./money";
+import { hashAccessPassword, validateAccessPassword, verifyAccessPassword } from "./password";
+import { resolveIban } from "./payment-qr";
 import {
   deleteCustomer,
   deleteInvoice,
   getInvoiceRow,
   listInvoiceNumbers,
+  readAccessPasswordHash,
   saveCompany,
   saveManualCustomer,
+  setAccessPasswordHash,
   setCompanyVatNote,
   setInvoicePayment,
   setInvoiceStatus,
@@ -29,6 +33,23 @@ export async function saveCompanyAction(_previous: { error: string; saved: boole
   await connection();
   const clearSecret = formData.get("clearSecret") === "on";
   const secret = String(formData.get("clientSecret") ?? "");
+  const bankAccount = String(formData.get("bankAccount") ?? "");
+  const bankCode = String(formData.get("bankCode") ?? "");
+  const iban = String(formData.get("iban") ?? "");
+  const swift = String(formData.get("swift") ?? "").trim();
+  const account = bankCode ? `${bankAccount}/${bankCode}` : bankAccount;
+
+  const passwordHash = await readAccessPasswordHash();
+  if (!passwordHash) {
+    return { error: "Nejdřív nastavte přístupové heslo na záložce Heslo.", saved: false };
+  }
+  if (!resolveIban(account, iban) || !swift) {
+    return {
+      error: "Pro založení / uložení firmy vyplňte bankovní údaje (účet, kód banky, IBAN a SWIFT).",
+      saved: false,
+    };
+  }
+
   await saveCompany({
     name: String(formData.get("name") ?? ""),
     ico: String(formData.get("ico") ?? ""),
@@ -39,19 +60,44 @@ export async function saveCompanyAction(_previous: { error: string; saved: boole
     country: String(formData.get("country") ?? ""),
     email: String(formData.get("email") ?? ""),
     phone: String(formData.get("phone") ?? ""),
-    vatNote:
-      formData.get("notVatPayer") === "on"
-        ? String(formData.get("vatNote") ?? "").trim() || vatNoteForFlag(true)
-        : "",
-    bankAccount: String(formData.get("bankAccount") ?? ""),
-    bankCode: String(formData.get("bankCode") ?? ""),
-    iban: String(formData.get("iban") ?? ""),
-    swift: String(formData.get("swift") ?? ""),
+    vatNote: vatNoteForFlag(formData.get("notVatPayer") === "on"),
+    bankAccount,
+    bankCode,
+    iban,
+    swift,
     footerNote: String(formData.get("footerNote") ?? ""),
     clientId: String(formData.get("clientId") ?? ""),
     clientSecret: secret.trim() ? secret : null,
     clearSecret,
   });
+  refresh();
+  return { error: "", saved: true };
+}
+
+export async function changeAccessPasswordAction(
+  _previous: { error: string; saved: boolean },
+  formData: FormData,
+) {
+  await connection();
+  const currentPassword = String(formData.get("currentPassword") ?? "");
+  const nextPassword = String(formData.get("newPassword") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  const nextError = validateAccessPassword(nextPassword);
+  if (nextError) return { error: nextError, saved: false };
+  if (nextPassword !== confirmPassword) {
+    return { error: "Nové heslo a potvrzení se neshodují.", saved: false };
+  }
+
+  const existingHash = await readAccessPasswordHash();
+  if (existingHash) {
+    if (!currentPassword) return { error: "Zadejte současné heslo.", saved: false };
+    if (!verifyAccessPassword(currentPassword, existingHash)) {
+      return { error: "Současné heslo není správné.", saved: false };
+    }
+  }
+
+  await setAccessPasswordHash(hashAccessPassword(nextPassword));
   refresh();
   return { error: "", saved: true };
 }
