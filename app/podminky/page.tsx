@@ -13,7 +13,7 @@ export default function PodminkyPage() {
       </Link>
       <article className="mt-6 space-y-3 text-sm leading-6 [&_h1]:font-heading [&_h1]:text-3xl [&_h2]:mt-6 [&_h2]:font-heading [&_h2]:text-xl [&_ul]:list-disc [&_ul]:pl-5">
         <h1>Podmínky používání a ochrana údajů</h1>
-        <p className="text-muted-foreground">Platné od [DATUM NASAZENÍ]</p>
+        <p className="text-muted-foreground">Platné od 24. 11. 2026</p>
 
         <h2>Kdo službu provozuje</h2>
         <p>
@@ -65,8 +65,8 @@ export default function PodminkyPage() {
 
         <h2>Kde jsou data uložena</h2>
         <p>
-          Aplikace běží na infrastruktuře společnosti Vercel Inc. a data jsou v databázi u [POSKYTOVATEL DATABÁZE,
-          REGION – doplnit]. Tito poskytovatelé jsou subdodavatelé (dílčí zpracovatelé) provozovatele. Přenos dat je
+          Aplikace běží na infrastruktuře společnosti Vercel Inc. a data jsou uložena v databázi umístěné v Evropské
+          unii. Vercel Inc. a poskytovatel databáze jsou subdodavatelé (dílčí zpracovatelé) provozovatele. Přenos dat je
           šifrovaný (HTTPS) a hesla jsou uložena v zašifrované podobě.
         </p>
 
