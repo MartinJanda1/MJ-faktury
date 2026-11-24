@@ -84,6 +84,9 @@ function ShellChrome({ children }: { children: React.ReactNode }) {
             </div>
           ) : null}
           <p className="text-xs leading-5 text-white/55">Data zůstávají v souboru na tomto počítači.</p>
+          <Link href="/podminky" className="block text-[11px] text-white/50 underline-offset-2 hover:text-white hover:underline">
+            Podmínky a ochrana údajů
+          </Link>
           <p className="text-right text-xs leading-5 font-bold text-white/55">Verze {packageJson.version}</p>
         </div>
       </aside>

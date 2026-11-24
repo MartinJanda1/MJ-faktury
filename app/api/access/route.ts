@@ -22,6 +22,8 @@ type AccessBody = {
   /** Resume unlocked session from localStorage without re-entering password. */
   resume?: boolean;
   logout?: boolean;
+  /** Souhlas s podmínkami (povinný při registraci). */
+  acceptTerms?: boolean;
 };
 
 function jsonWithTenantCookie(
@@ -106,6 +108,13 @@ export async function POST(request: Request) {
   const intent = body.intent === "register" ? "register" : "login";
 
   if (intent === "register") {
+    if (body.acceptTerms !== true) {
+      return NextResponse.json(
+        { ok: false, error: "Pro založení firmy je nutný souhlas s podmínkami používání." },
+        { status: 400 },
+      );
+    }
+
     const existing = await findTenantByIco(ico);
     if (existing?.company.accessPasswordHash) {
       return NextResponse.json(
@@ -142,7 +151,7 @@ export async function POST(request: Request) {
         country: party.country,
         vatNote: party.vatNote,
         bankAccount: demo ? DEMO_BANK_ACCOUNT : undefined,
-      });
+      }, new Date().toISOString());
     } catch (error) {
       const message = error instanceof Error ? error.message : "Registrace se nepovedla.";
       return NextResponse.json({ ok: false, error: message }, { status: 409 });

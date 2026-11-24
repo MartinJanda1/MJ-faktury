@@ -4,7 +4,7 @@ import path from "node:path";
 import { get, put } from "@vercel/blob";
 import type { Company, Customer, Invoice, InvoiceItem } from "./types";
 
-export type TenantCompany = Company & { idokladClientSecret: string; accessPasswordHash: string };
+export type TenantCompany = Company & { idokladClientSecret: string; accessPasswordHash: string; termsAcceptedAt: string };
 
 export type Tenant = {
   id: string;
@@ -64,6 +64,7 @@ export function emptyCompany(): TenantCompany {
     hasAccessPassword: false,
     idokladClientSecret: "",
     accessPasswordHash: "",
+    termsAcceptedAt: "",
   };
 }
 
@@ -96,6 +97,7 @@ function normalizeCompany(company: Partial<TenantCompany> | undefined): TenantCo
     footerNote: company.footerNote ?? "",
     idokladClientSecret: company.idokladClientSecret ?? "",
     accessPasswordHash: company.accessPasswordHash ?? "",
+    termsAcceptedAt: company.termsAcceptedAt ?? "",
     hasIdokladSecret: Boolean(company.idokladClientSecret),
     hasAccessPassword: Boolean(company.accessPasswordHash),
   };

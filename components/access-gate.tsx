@@ -9,6 +9,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -137,6 +138,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
   const [registerIco, setRegisterIco] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -258,11 +260,15 @@ export function AccessGate({ children }: { children: ReactNode }) {
       setError("Heslo a potvrzení se neshodují.");
       return;
     }
+    if (intent === "register" && !acceptTerms) {
+      setError("Pro založení firmy je nutný souhlas s podmínkami.");
+      return;
+    }
 
     setPending(true);
     setError("");
     try {
-      const result = await postAccess({ ico: normalized, password, intent });
+      const result = await postAccess({ ico: normalized, password, intent, acceptTerms: intent === "register" ? acceptTerms : undefined });
       if (!result.ok) {
         setStatus("locked");
         setError(result.error);
@@ -320,7 +326,8 @@ export function AccessGate({ children }: { children: ReactNode }) {
   const registerReady =
     normalizeIco(registerIco).length === 8 &&
     isAccessPasswordFormat(registerPassword) &&
-    registerPassword === confirmPassword;
+    registerPassword === confirmPassword &&
+    acceptTerms;
 
   return (
     <AccessContext.Provider value={{ status, unlocked, tenantId, ico, companyName, logout, syncIco }}>
@@ -451,6 +458,27 @@ export function AccessGate({ children }: { children: ReactNode }) {
                     disabled={pending}
                   />
                 </label>
+                <label className="flex items-start gap-2 text-sm leading-5">
+                  <input
+                    type="checkbox"
+                    name="register-terms"
+                    required
+                    className="mt-0.5 size-4 shrink-0"
+                    checked={acceptTerms}
+                    onChange={(event) => {
+                      setAcceptTerms(event.target.checked);
+                      setError("");
+                    }}
+                    disabled={pending}
+                  />
+                  <span>
+                    Souhlasím s{" "}
+                    <Link href="/podminky" target="_blank" className="underline underline-offset-2">
+                      podmínkami používání
+                    </Link>{" "}
+                    a beru na vědomí zpracování údajů
+                  </span>
+                </label>
                 {error && tab === "register" ? (
                   <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
                 ) : null}
@@ -466,6 +494,11 @@ export function AccessGate({ children }: { children: ReactNode }) {
               </form>
             </TabsContent>
           </Tabs>
+          <p className="text-center text-xs text-muted-foreground">
+            <Link href="/podminky" target="_blank" className="underline underline-offset-2 hover:text-foreground">
+              Podmínky a ochrana údajů
+            </Link>
+          </p>
         </DialogContent>
       </Dialog>
     </AccessContext.Provider>

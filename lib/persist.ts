@@ -550,6 +550,7 @@ export async function registerCompanyAccess(
   ico: string,
   passwordHash: string,
   party: AresCompanyParty,
+  termsAcceptedAt = "",
 ): Promise<{ tenantId: string; ico: string; companyName: string }> {
   const normalized = normalizeIco(ico);
   if (!normalized) throw new Error("Zadejte platné IČO (8 číslic).");
@@ -561,6 +562,7 @@ export async function registerCompanyAccess(
     }
     const tenant = existing ?? emptyTenant();
     applyAresPartyToCompany(tenant, normalized, party, { passwordHash, overwriteIdentity: true });
+    if (termsAcceptedAt) tenant.company.termsAcceptedAt = termsAcceptedAt;
     if (!existing) doc.tenants.push(tenant);
     return { tenantId: tenant.id, ico: normalized, companyName: tenant.company.name.trim() };
   });
