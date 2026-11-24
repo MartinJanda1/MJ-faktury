@@ -518,6 +518,8 @@ type AresCompanyParty = {
   zip: string;
   country: string;
   vatNote: string;
+  /** Pouze demo režim; ARES účet neposkytuje. */
+  bankAccount?: string;
 };
 
 function applyAresPartyToCompany(
@@ -538,6 +540,9 @@ function applyAresPartyToCompany(
   tenant.company.zip = write(tenant.company.zip, party.zip);
   tenant.company.country = write(tenant.company.country, party.country) || "Česká republika";
   tenant.company.vatNote = write(tenant.company.vatNote, party.vatNote);
+  if (party.bankAccount) {
+    tenant.company.bankAccount = write(tenant.company.bankAccount, party.bankAccount);
+  }
 }
 
 /** Register a new firm (tenant). Fails if IČO already has a password. */

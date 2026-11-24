@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchAresByIco } from "@/lib/ares";
+import { DEMO_BANK_ACCOUNT, DEMO_PARTY, isDemoIco } from "@/lib/demo";
 import { normalizeIco } from "@/lib/ico";
 import { hashAccessPassword, validateAccessPassword, verifyAccessPassword } from "@/lib/password";
 import {
@@ -116,13 +117,18 @@ export async function POST(request: Request) {
       );
     }
 
+    const demo = isDemoIco(ico);
     let party;
-    try {
-      party = await fetchAresByIco(ico);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "ARES se nepodařilo načíst.";
-      const status = message.includes("nebyl v ARES nalezen") ? 404 : 502;
-      return NextResponse.json({ ok: false, error: message }, { status });
+    if (demo) {
+      party = DEMO_PARTY;
+    } else {
+      try {
+        party = await fetchAresByIco(ico);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "ARES se nepodařilo načíst.";
+        const status = message.includes("nebyl v ARES nalezen") ? 404 : 502;
+        return NextResponse.json({ ok: false, error: message }, { status });
+      }
     }
 
     let created: { tenantId: string; ico: string; companyName: string };
@@ -135,6 +141,7 @@ export async function POST(request: Request) {
         zip: party.zip,
         country: party.country,
         vatNote: party.vatNote,
+        bankAccount: demo ? DEMO_BANK_ACCOUNT : undefined,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Registrace se nepovedla.";
